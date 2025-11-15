@@ -33,6 +33,8 @@ def respond_to_offer(negotiation_state: Dict[str, Any]) -> Dict[str, Any]:
     platform_data = negotiation_state.get("platform_data", {})
     history = negotiation_state.get("history", [])
     turn_number = negotiation_state.get("turn_number", 1)
+    current_buyer_offer = negotiation_state.get("current_buyer_offer")
+    other_buyers_count = negotiation_state.get("other_buyers_count", 0)
 
     min_acceptable = seller_prefs.get("min_acceptable", 750)
     asking_price = seller_prefs.get("asking_price", 750)
@@ -44,13 +46,16 @@ def respond_to_offer(negotiation_state: Dict[str, Any]) -> Dict[str, Any]:
     stats = platform_data.get("platform_stats", {})
 
     # Get last buyer offer
-    last_buyer_offer = None
-    for turn in reversed(history):
-        if turn.get("party") == "buyer":
-            last_buyer_offer = turn.get("offer_price")
-            break
+    last_buyer_offer = current_buyer_offer
+    if not last_buyer_offer:
+        for turn in reversed(history):
+            if turn.get("party") == "buyer" or turn.get("action") in ["counter", "accept"]:
+                last_buyer_offer = turn.get("offer_price")
+                break
 
     # Build prompt
+    is_multi_buyer = other_buyers_count > 0
+
     system_prompt = """You are a seller negotiating in a marketplace. Be realistic and conversational.
 
 Your personality: Confident, values the product, reasonable but firm
@@ -59,11 +64,19 @@ RULES:
 1. Respond conversationally - like texting a buyer naturally
 2. Reference comparable market data to justify your price
 3. Highlight product condition and extras as value adds
-4. If buyer starts with a very lowball offer, don't engage - reject/walk away
+4. If buyer starts with a very lowball offer, don't engage - counter with a reasonable counter offer
 5. Be willing to come down gradually if buyer shows genuine interest
 6. Your minimum acceptable price is the absolute floor - don't go below it
-7. Consider your product fairly valued compared to market data
+7. Consider your product fairly valued compared to market data"""
 
+    if is_multi_buyer:
+        system_prompt += """
+8. You are currently negotiating with MULTIPLE BUYERS independently
+9. You can mention that you have other interested buyers (creates urgency) but DON'T reveal their exact offers
+10. Accept an offer when it's good enough - don't wait for a mythical perfect buyer
+11. If you receive a good offer from any buyer, you can accept immediately"""
+
+    system_prompt += """
 CONSTRAINTS:
 - NEVER accept below min_acceptable - this is your floor
 - Try to stay near asking_price
@@ -77,8 +90,14 @@ CONSTRAINTS:
 - Includes: {', '.join(product.get('extras', []))}
 
 YOUR SITUATION:
-- Turn: {turn_number}
+- Turn: {turn_number}"""
 
+    if is_multi_buyer:
+        user_prompt += f"""
+- MULTI-BUYER MODE: You have {other_buyers_count} other interested buyer(s) besides this one
+- This creates competitive pressure - you can reference having other offers"""
+
+    user_prompt += f"""
 MARKET DATA (from our platform):
 Comparable listings:
 """
@@ -134,7 +153,7 @@ Return ONLY this JSON:
                 "X-Title": "HackNYU",
             },
             json={
-                "model": "anthropic/claude-3-5-sonnet-20241022",
+                "model": "anthropic/claude-sonnet-4.5",
                 "messages": [
                     {
                         "role": "system",
