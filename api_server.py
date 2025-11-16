@@ -458,19 +458,25 @@ def run_single_negotiation(listing: Dict[str, Any], buyer_budget_override: Optio
         "asking_price": asking_price,
         "can_bundle_extras": listing.get("extras", [])
     }
-    
+
+    # Generate product-specific questions for buyer agent
+    product_questions = generate_product_questions(
+        listing.get("title", "product"),
+        listing.get("title", "")
+    )
+
     # Run negotiation
     messages: List[NegotiationMessage] = []
     history: List[Dict[str, Any]] = []
     final_price = None
     max_turns = 8
-    
+
     # Add system start message
     messages.append(NegotiationMessage(
         role="system",
         content=f"Negotiation started for {listing['title']}. AI agents analyzing market data and conditions..."
     ))
-    
+
     try:
         for turn_num in range(1, max_turns + 1):
             # Buyer's turn (odd turns)
@@ -481,8 +487,8 @@ def run_single_negotiation(listing: Dict[str, Any], buyer_budget_override: Optio
                     "history": history,
                     "turn_number": turn_num
                 }
-                
-                buyer_response = make_offer(buyer_state)
+
+                buyer_response = make_offer(buyer_state, product_questions=product_questions)
                 
                 # Add to messages
                 messages.append(NegotiationMessage(
@@ -649,6 +655,12 @@ def run_single_negotiation_streaming(listing: Dict[str, Any], buyer_budget_overr
         "can_bundle_extras": listing.get("extras", [])
     }
 
+    # Generate product-specific questions for buyer agent
+    product_questions = generate_product_questions(
+        listing.get("title", "product"),
+        listing.get("title", "")
+    )
+
     # Initial message
     yield json.dumps({
         "type": "message",
@@ -671,7 +683,7 @@ def run_single_negotiation_streaming(listing: Dict[str, Any], buyer_budget_overr
                     "turn_number": turn_num
                 }
 
-                buyer_response = make_offer(buyer_state)
+                buyer_response = make_offer(buyer_state, product_questions=product_questions)
 
                 # Stream buyer message
                 yield json.dumps({
