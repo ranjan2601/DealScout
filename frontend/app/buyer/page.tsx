@@ -45,6 +45,17 @@ export default function BuyerPage() {
   const [cardCVV, setCardCVV] = useState("");
   const [cardName, setCardName] = useState("");
 
+  // Agentic Mode State
+  const [agenticMode, setAgenticMode] = useState(false);
+  const [agenticQuery, setAgenticQuery] = useState("");
+  const [agenticStatus, setAgenticStatus] = useState("");
+  const [agenticStep, setAgenticStep] = useState("");
+  const [productInfo, setProductInfo] = useState<any>(null);
+  const [productQuestions, setProductQuestions] = useState<string[]>([]);
+  const [parallelNegotiations, setParallelNegotiations] = useState<any[]>([]);
+  const [bestDeal, setBestDeal] = useState<any>(null);
+  const [isAgenticSearching, setIsAgenticSearching] = useState(false);
+
   // Load all products on page mount
   useEffect(() => {
     const loadAllProducts = async () => {
@@ -555,17 +566,345 @@ export default function BuyerPage() {
     }
   };
 
+  const handleAgenticSearch = async (query: string) => {
+    if (!query.trim()) return;
+
+    setIsAgenticSearching(true);
+    setAgenticQuery(query);
+    setAgenticStatus("Starting AI-powered search...");
+    setAgenticStep("init");
+    setParallelNegotiations([]);
+    setBestDeal(null);
+
+    try {
+      const response = await fetch("http://localhost:8000/negotiation/parallel-stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          search_query: query,
+          max_budget: null,
+          top_n: 5,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to start agentic search");
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error("Response body is not readable");
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = JSON.parse(line.slice(6));
+
+            if (data.type === "status") {
+              setAgenticStatus(data.message);
+              setAgenticStep(data.step);
+            } else if (data.type === "product_info") {
+              setProductInfo(data.data);
+            } else if (data.type === "questions") {
+              setProductQuestions(data.data);
+            } else if (data.type === "products_found") {
+              // Initialize parallel negotiations array
+              setParallelNegotiations(
+                data.data.map((product: any, index: number) => ({
+                  seller_id: product.item_id,
+                  product: product,
+                  status: "pending",
+                  messages: [],
+                  final_price: null,
+                  index: index,
+                }))
+              );
+            } else if (data.type === "negotiation_start") {
+              setParallelNegotiations((prev) =>
+                prev.map((neg) =>
+                  neg.seller_id === data.seller_id
+                    ? { ...neg, status: "negotiating" }
+                    : neg
+                )
+              );
+            } else if (data.type === "negotiation_message") {
+              setParallelNegotiations((prev) =>
+                prev.map((neg) =>
+                  neg.seller_id === data.seller_id
+                    ? {
+                        ...neg,
+                        messages: [...neg.messages, data.message],
+                      }
+                    : neg
+                )
+              );
+            } else if (data.type === "negotiation_complete") {
+              setParallelNegotiations((prev) =>
+                prev.map((neg) =>
+                  neg.seller_id === data.seller_id
+                    ? {
+                        ...neg,
+                        status: "complete",
+                        final_price: data.final_price,
+                        result: data.result,
+                      }
+                    : neg
+                )
+              );
+            } else if (data.type === "best_deal") {
+              setBestDeal(data.data);
+              setAgenticStatus("✅ AI found the best deal for you!");
+              setAgenticStep("complete");
+            } else if (data.type === "error") {
+              setAgenticStatus(`Error: ${data.message}`);
+              setAgenticStep("error");
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error during agentic search:", error);
+      setAgenticStatus("An error occurred during the search");
+      setAgenticStep("error");
+    } finally {
+      setIsAgenticSearching(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 flex flex-col">
       <Header showBackButton onBrowseClick={handleBrowseReset} />
 
       <main className="flex-1 flex overflow-hidden">
         <div className={`flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto w-full transition-all duration-300 ${selectedProduct ? 'mr-0 sm:mr-[500px]' : ''}`}>
-          {/* Search Bar at the top */}
-          <SearchBar onSearch={handleSearch} isLoading={isSearching} />
+          {/* Agentic Mode Toggle */}
+          <div className="mb-6 flex items-center justify-between bg-white rounded-xl shadow-md p-4 border-2 border-blue-100">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-r from-purple-500 to-blue-500 p-2 rounded-lg">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900">AI Agent Mode</h3>
+                <p className="text-sm text-gray-600">Let AI negotiate with multiple sellers simultaneously</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setAgenticMode(!agenticMode)}
+              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                agenticMode ? 'bg-blue-600' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                  agenticMode ? 'translate-x-7' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
 
-          {/* Search Results */}
-          {hasSearched && (
+          {/* Conditional Rendering based on mode */}
+          {agenticMode ? (
+            /* AGENTIC MODE UI */
+            <div className="space-y-6">
+              {/* Agentic Search Input */}
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 shadow-lg border-2 border-purple-200">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">🤖 AI-Powered Marketplace Search</h2>
+                <p className="text-gray-700 mb-4">
+                  Tell me what you're looking for in natural language, and I'll negotiate with multiple sellers to find you the best deal!
+                </p>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleAgenticSearch(agenticQuery);
+                  }}
+                  className="flex gap-3"
+                >
+                  <input
+                    type="text"
+                    value={agenticQuery}
+                    onChange={(e) => setAgenticQuery(e.target.value)}
+                    placeholder='e.g., "Mountain bike under $1000 in good condition"'
+                    className="flex-1 px-4 py-3 rounded-lg border-2 border-purple-300 focus:border-purple-500 focus:outline-none text-lg"
+                    disabled={isAgenticSearching}
+                  />
+                  <button
+                    type="submit"
+                    disabled={isAgenticSearching || !agenticQuery.trim()}
+                    className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {isAgenticSearching ? "Searching..." : "Search"}
+                  </button>
+                </form>
+              </div>
+
+              {/* Status Display */}
+              {agenticStatus && (
+                <div className="bg-white rounded-xl p-6 shadow-md border-l-4 border-blue-500">
+                  <div className="flex items-center gap-3">
+                    {agenticStep !== "complete" && agenticStep !== "error" && (
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-200 border-t-blue-600"></div>
+                    )}
+                    <p className="text-lg font-medium text-gray-900">{agenticStatus}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Product Info Display */}
+              {productInfo && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 shadow-md border-2 border-green-200">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">📦 Detected Product</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Type</p>
+                      <p className="font-bold text-gray-900">{productInfo.product_type}</p>
+                    </div>
+                    {productInfo.max_price && (
+                      <div>
+                        <p className="text-sm text-gray-600">Max Price</p>
+                        <p className="font-bold text-gray-900">${productInfo.max_price}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm text-gray-600">Condition</p>
+                      <p className="font-bold text-gray-900 capitalize">{productInfo.min_condition}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Urgency</p>
+                      <p className="font-bold text-gray-900 capitalize">{productInfo.urgency}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Product Questions Display */}
+              {productQuestions.length > 0 && (
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 shadow-md border-2 border-amber-200">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">❓ AI-Generated Questions</h3>
+                  <p className="text-gray-700 mb-3">My buyer agent will ask these questions to evaluate the product:</p>
+                  <ul className="space-y-2">
+                    {productQuestions.map((q, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-amber-600 font-bold">{idx + 1}.</span>
+                        <span className="text-gray-800">{q}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Best Deal Recommendation */}
+              {bestDeal && (
+                <div className="bg-gradient-to-r from-yellow-50 via-amber-50 to-orange-50 rounded-xl p-8 shadow-2xl border-4 border-yellow-400">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-yellow-400 p-3 rounded-full">
+                      <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    </div>
+                    <h2 className="text-3xl font-bold text-gray-900">🏆 Best Deal Found!</h2>
+                  </div>
+                  <div className="bg-white rounded-lg p-6 shadow-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h3 className="font-bold text-xl text-gray-900 mb-2">{bestDeal.product.product_detail}</h3>
+                        <p className="text-gray-600 mb-4">{bestDeal.product.condition}</p>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Original Price:</span>
+                            <span className="font-semibold line-through text-gray-500">${bestDeal.product.asking_price}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Negotiated Price:</span>
+                            <span className="font-bold text-2xl text-green-600">${bestDeal.final_price}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">You Save:</span>
+                            <span className="font-bold text-xl text-blue-600">${bestDeal.savings}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-900 mb-2">Why This Deal?</h4>
+                        <p className="text-gray-700">{bestDeal.recommendation_reason}</p>
+                        <button className="mt-4 w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 px-6 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all">
+                          Accept Best Deal
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Parallel Negotiations Grid */}
+              {parallelNegotiations.length > 0 && (
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                    🤝 Live Negotiations ({parallelNegotiations.length} sellers)
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {parallelNegotiations.map((neg) => (
+                      <div
+                        key={neg.seller_id}
+                        className={`rounded-xl p-4 shadow-lg border-2 ${
+                          neg.status === "complete"
+                            ? "bg-green-50 border-green-400"
+                            : neg.status === "negotiating"
+                            ? "bg-blue-50 border-blue-400"
+                            : "bg-gray-50 border-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-bold text-gray-900 truncate">Seller #{neg.index + 1}</h4>
+                          <span
+                            className={`px-2 py-1 text-xs font-bold rounded-full ${
+                              neg.status === "complete"
+                                ? "bg-green-200 text-green-800"
+                                : neg.status === "negotiating"
+                                ? "bg-blue-200 text-blue-800"
+                                : "bg-gray-200 text-gray-800"
+                            }`}
+                          >
+                            {neg.status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700 mb-2 line-clamp-2">{neg.product.product_detail}</p>
+                        <div className="text-xs text-gray-600">
+                          <p>Asking: ${neg.product.asking_price}</p>
+                          {neg.final_price && (
+                            <p className="font-bold text-green-600 mt-1">Final: ${neg.final_price}</p>
+                          )}
+                        </div>
+                        {neg.messages.length > 0 && (
+                          <div className="mt-2 text-xs bg-white rounded p-2 max-h-24 overflow-y-auto">
+                            <p className="text-gray-600">Last: {neg.messages[neg.messages.length - 1].content}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* STANDARD MODE UI (existing search) */
+            <>
+              <SearchBar onSearch={handleSearch} isLoading={isSearching} />
+
+              {/* Search Results */}
+              {hasSearched && (
             <div className="mt-8">
               {queryAnalysis && (
                 <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-l-4 border-blue-500 rounded-lg p-6 mb-8 shadow-sm">
@@ -715,7 +1054,7 @@ export default function BuyerPage() {
                   </div>
                 </>
               )}
-            </div>
+            </>
           )}
         </div>
       </main>
