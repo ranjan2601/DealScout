@@ -11,9 +11,18 @@ import os
 from dotenv import load_dotenv
 from buyer_agent import make_offer
 from seller_agent import respond_to_offer
+from pymongo import MongoClient
+from bson import ObjectId
 
 # Load environment variables
 load_dotenv()
+
+# MongoDB connection
+MONGO_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+DATABASE_NAME = os.getenv("DATABASE_NAME", "dealscout")
+mongo_client = MongoClient(MONGO_URI)
+mongo_db = mongo_client[DATABASE_NAME]
+sellers_collection = mongo_db["sellers"]
 
 app = FastAPI(title="DealScout API", version="1.0.0")
 
@@ -59,36 +68,89 @@ class Filters(BaseModel):
 
 
 # Mock listing database (in production, this would be a real database)
+# Maps frontend listing IDs to backend listing data
 MOCK_LISTINGS = {
     "listing-1": {
         "id": "listing-1",
-        "title": "Trek Mountain Bike FX 3 Disc",
+        "title": "Trek Mountain Bike - Excellent Condition",
         "price": 1200,
         "condition": "like-new",
-        "extras": ["helmet", "lock", "lights"]
+        "extras": ["helmet", "lock"]
     },
     "listing-2": {
         "id": "listing-2",
-        "title": "Giant Escape 3 Hybrid Bike",
+        "title": "Giant Road Bike",
         "price": 850,
-        "condition": "good",
-        "extras": ["water bottle holder"]
+        "condition": "used",
+        "extras": []
     },
     "listing-3": {
         "id": "listing-3",
-        "title": "Specialized Rockhopper Elite",
+        "title": "Specialized Electric Bike - Brand New",
         "price": 3500,
         "condition": "new",
         "extras": ["warranty", "free service"]
     },
     "listing-4": {
         "id": "listing-4",
-        "title": "Cannondale Trail 5",
+        "title": "Cannondale Hybrid Bike",
         "price": 650,
+        "condition": "like-new",
+        "extras": []
+    },
+    "listing-5": {
+        "id": "listing-5",
+        "title": "Trek Cruiser - Comfortable Ride",
+        "price": 450,
+        "condition": "used",
+        "extras": []
+    },
+    "listing-6": {
+        "id": "listing-6",
+        "title": "Giant Mountain Bike - Trail Ready",
+        "price": 980,
+        "condition": "like-new",
+        "extras": []
+    },
+    "listing-7": {
+        "id": "listing-7",
+        "title": "Specialized Road Bike - Racing Edition",
+        "price": 2100,
+        "condition": "like-new",
+        "extras": []
+    },
+    "listing-8": {
+        "id": "listing-8",
+        "title": "Cannondale Kids Bike",
+        "price": 280,
         "condition": "used",
         "extras": []
     },
 }
+
+
+def get_product_from_db(item_id: str) -> Optional[Dict[str, Any]]:
+    """Fetch product data from MongoDB using item_id"""
+    try:
+        # Try to fetch by item_id field
+        product = sellers_collection.find_one({"item_id": item_id})
+        if product:
+            return {
+                "id": str(product.get("_id")),
+                "item_id": product.get("item_id"),
+                "title": product.get("product_detail", "Unknown Product"),
+                "price": product.get("asking_price", 0),
+                "condition": product.get("condition", "good"),
+                "extras": [],
+                "min_selling_price": product.get("min_selling_price"),
+                "seller_id": product.get("seller_id"),
+                "category": product.get("category"),
+                "location": product.get("location")
+            }
+    except Exception as e:
+        print(f"Error fetching product from DB: {e}")
+
+    return None
 
 
 def get_platform_comps(listing_price: float) -> Dict[str, Any]:
@@ -293,11 +355,11 @@ async def root():
 async def negotiate_listings(request: NegotiationRequest):
     """
     Run AI-powered negotiations for selected listings
-    
+
     This endpoint orchestrates negotiations between buyer and seller AI agents
     using Claude Sonnet via OpenRouter API.
     """
-    
+
     # Check for API key
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
@@ -305,13 +367,17 @@ async def negotiate_listings(request: NegotiationRequest):
             status_code=500,
             detail="OPENROUTER_API_KEY not configured on server"
         )
-    
+
     results = []
-    
+
     for listing_id in request.listing_ids:
-        # Get listing data (in production, fetch from database)
-        listing = MOCK_LISTINGS.get(listing_id)
-        
+        # Try to fetch from database first, then fall back to mock listings
+        listing = get_product_from_db(listing_id)
+
+        if not listing:
+            # Fall back to mock listings
+            listing = MOCK_LISTINGS.get(listing_id)
+
         if not listing:
             # Return error result for unknown listing
             results.append(NegotiationResult(
@@ -326,11 +392,11 @@ async def negotiate_listings(request: NegotiationRequest):
                 savings=0
             ))
             continue
-        
+
         # Run negotiation
         result = run_single_negotiation(listing)
         results.append(result)
-    
+
     return results
 
 

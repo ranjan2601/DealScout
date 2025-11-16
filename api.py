@@ -283,16 +283,29 @@ def start_negotiation_endpoint():
 
         listing_id = selected_listing_ids[0]
 
-        # TODO: Fetch listing from database
+        # Fetch listing from database (for now, map frontend listing IDs to mock data)
+        # Map frontend listing-X to backend listing structure
+        frontend_to_backend_map = {
+            "listing-1": {"title": "Trek Mountain Bike - Excellent Condition", "price": 1200, "condition": "like-new", "brand": "Trek"},
+            "listing-2": {"title": "Giant Road Bike", "price": 850, "condition": "used", "brand": "Giant"},
+            "listing-3": {"title": "Specialized Electric Bike - Brand New", "price": 3500, "condition": "new", "brand": "Specialized"},
+            "listing-4": {"title": "Cannondale Hybrid Bike", "price": 650, "condition": "like-new", "brand": "Cannondale"},
+            "listing-5": {"title": "Trek Cruiser - Comfortable Ride", "price": 450, "condition": "used", "brand": "Trek"},
+            "listing-6": {"title": "Giant Mountain Bike - Trail Ready", "price": 980, "condition": "like-new", "brand": "Giant"},
+            "listing-7": {"title": "Specialized Road Bike - Racing Edition", "price": 2100, "condition": "like-new", "brand": "Specialized"},
+            "listing-8": {"title": "Cannondale Kids Bike", "price": 280, "condition": "used", "brand": "Cannondale"},
+        }
+
+        listing_data = frontend_to_backend_map.get(listing_id, {})
         listing = {
             "listing_id": listing_id,
-            "title": "Trek Mountain Bike XL",
-            "condition": "like-new",
-            "asking_price": 450,
+            "title": listing_data.get("title", "Unknown Bike"),
+            "condition": listing_data.get("condition", "unknown"),
+            "asking_price": listing_data.get("price", 500),
             "location": "Brooklyn, NY",
             "category": "bikes",
-            "seller_id": "seller_123",
-            "extras": ["helmet", "lock"]
+            "seller_id": f"seller_{listing_id}",
+            "extras": []
         }
 
         # Get comparable listings
@@ -434,4 +447,4 @@ def internal_error(error):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True, host="0.0.0.0", port=8000)

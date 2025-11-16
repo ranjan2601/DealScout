@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Filters } from "@/lib/types";
 import { availableBrands } from "@/lib/mockData";
 
@@ -9,6 +9,7 @@ interface FiltersPanelProps {
   onFiltersChange: (filters: Filters) => void;
   onAgentQuery: (query: string) => void;
   isLoading?: boolean;
+  lastAgentQuery?: string;
 }
 
 export default function FiltersPanel({
@@ -16,8 +17,15 @@ export default function FiltersPanel({
   onFiltersChange,
   onAgentQuery,
   isLoading = false,
+  lastAgentQuery = "",
 }: FiltersPanelProps) {
   const [agentQuery, setAgentQuery] = useState("");
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  useEffect(() => {
+    // Trigger animation on mount
+    setIsAnimating(true);
+  }, []);
 
   const handleAgentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,9 +51,17 @@ export default function FiltersPanel({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
+    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6 transition-all duration-500 ${
+      isAnimating
+        ? 'opacity-100 translate-y-0'
+        : 'opacity-0 translate-y-4'
+    }`}>
       {/* AI Agent Input */}
-      <div>
+      <div className={`transition-all duration-700 delay-100 ${
+        isAnimating
+          ? 'opacity-100 translate-y-0'
+          : 'opacity-0 translate-y-4'
+      }`}>
         <h3 className="text-lg font-semibold text-gray-900 mb-3">
           Ask the AI Agent
         </h3>
@@ -69,9 +85,68 @@ export default function FiltersPanel({
         <p className="text-xs text-gray-500 mt-2">
           You can either use filters below or ask the AI agent in natural language.
         </p>
+
+        {/* AI Agent Results Display */}
+        {lastAgentQuery && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="text-sm font-semibold text-blue-900 mb-2">
+              🤖 AI Agent Extracted:
+            </h4>
+            <div className="space-y-1 text-sm text-blue-800">
+              {filters.maxPrice !== undefined && (
+                <div className="flex items-center">
+                  <span className="text-blue-600 mr-2">💰</span>
+                  <span>Max Price: <strong>${filters.maxPrice}</strong></span>
+                </div>
+              )}
+              {filters.minPrice !== undefined && (
+                <div className="flex items-center">
+                  <span className="text-blue-600 mr-2">💰</span>
+                  <span>Min Price: <strong>${filters.minPrice}</strong></span>
+                </div>
+              )}
+              {filters.maxDistance !== undefined && (
+                <div className="flex items-center">
+                  <span className="text-blue-600 mr-2">🗺️</span>
+                  <span>Distance: <strong>Within {filters.maxDistance} miles</strong></span>
+                </div>
+              )}
+              {filters.selectedConditions && filters.selectedConditions.length > 0 && (
+                <div className="flex items-center">
+                  <span className="text-blue-600 mr-2">✨</span>
+                  <span>
+                    Condition:{" "}
+                    <strong>
+                      {filters.selectedConditions.map((c) => c === "like-new" ? "Like New" : c.charAt(0).toUpperCase() + c.slice(1)).join(", ")}
+                    </strong>
+                  </span>
+                </div>
+              )}
+              {filters.selectedBrands && filters.selectedBrands.length > 0 && (
+                <div className="flex items-center">
+                  <span className="text-blue-600 mr-2">🏭</span>
+                  <span>
+                    Brands: <strong>{filters.selectedBrands.join(", ")}</strong>
+                  </span>
+                </div>
+              )}
+              {(!filters.maxPrice &&
+                !filters.minPrice &&
+                !filters.maxDistance &&
+                (!filters.selectedConditions || filters.selectedConditions.length === 0) &&
+                (!filters.selectedBrands || filters.selectedBrands.length === 0)) && (
+                <p className="text-blue-700 italic">No filters extracted from query</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="border-t border-gray-200 pt-6">
+      <div className={`border-t border-gray-200 pt-6 transition-all duration-700 delay-200 ${
+        isAnimating
+          ? 'opacity-100 translate-y-0'
+          : 'opacity-0 translate-y-4'
+      }`}>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           Manual Filters
         </h3>
