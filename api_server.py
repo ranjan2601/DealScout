@@ -73,6 +73,15 @@ class Filters(BaseModel):
     selectedBrands: Optional[List[str]] = None
 
 
+class ContractRequest(BaseModel):
+    negotiation_id: Optional[str] = None
+    buyer_id: str
+    seller_id: str
+    listing_id: str
+    result: Dict[str, Any]
+    product: Dict[str, Any]
+
+
 # Mock listing database (in production, this would be a real database)
 # Maps frontend listing IDs to backend listing data
 MOCK_LISTINGS = {
