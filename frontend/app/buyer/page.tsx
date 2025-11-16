@@ -720,34 +720,71 @@ export default function BuyerPage() {
             /* AGENTIC MODE UI */
             <div className="space-y-6">
               {/* Agentic Search Input */}
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 shadow-lg border-2 border-purple-200">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">🤖 AI-Powered Marketplace Search</h2>
-                <p className="text-gray-700 mb-4">
-                  Tell me what you're looking for in natural language, and I'll negotiate with multiple sellers to find you the best deal!
-                </p>
+              <div className="w-full">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
                     handleAgenticSearch(agenticQuery);
                   }}
-                  className="flex gap-3"
+                  className="relative"
                 >
-                  <input
-                    type="text"
-                    value={agenticQuery}
-                    onChange={(e) => setAgenticQuery(e.target.value)}
-                    placeholder='e.g., "Mountain bike under $1000 in good condition"'
-                    className="flex-1 px-4 py-3 rounded-lg border-2 border-purple-300 focus:border-purple-500 focus:outline-none text-lg"
-                    disabled={isAgenticSearching}
-                  />
-                  <button
-                    type="submit"
-                    disabled={isAgenticSearching || !agenticQuery.trim()}
-                    className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    {isAgenticSearching ? "Searching..." : "Search"}
-                  </button>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={agenticQuery}
+                      onChange={(e) => setAgenticQuery(e.target.value)}
+                      placeholder="Search for products... (e.g., 'laptop under $500', 'iPhone in good condition')"
+                      className="w-full px-6 py-4 pr-32 text-lg text-gray-900 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all shadow-sm bg-white"
+                      disabled={isAgenticSearching}
+                    />
+                    <button
+                      type="submit"
+                      disabled={isAgenticSearching || !agenticQuery.trim()}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {isAgenticSearching ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Searching...
+                        </>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            />
+                          </svg>
+                          Search
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </form>
+
+                {/* Search Tips */}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="text-sm text-gray-600">Try:</span>
+                  {["laptop under $800", "iPhone 13", "gaming chair", "camera"].map((tip) => (
+                    <button
+                      key={tip}
+                      onClick={() => {
+                        setAgenticQuery(tip);
+                        handleAgenticSearch(tip);
+                      }}
+                      className="text-sm px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors"
+                    >
+                      {tip}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Status Display */}
@@ -758,33 +795,6 @@ export default function BuyerPage() {
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-200 border-t-blue-600"></div>
                     )}
                     <p className="text-lg font-medium text-gray-900">{agenticStatus}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Product Info Display */}
-              {productInfo && (
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 shadow-md border-2 border-green-200">
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">📦 Detected Product</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-600">Type</p>
-                      <p className="font-bold text-gray-900">{productInfo.product_type}</p>
-                    </div>
-                    {productInfo.max_price && (
-                      <div>
-                        <p className="text-sm text-gray-600">Max Price</p>
-                        <p className="font-bold text-gray-900">${productInfo.max_price}</p>
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-sm text-gray-600">Condition</p>
-                      <p className="font-bold text-gray-900 capitalize">{productInfo.min_condition}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Urgency</p>
-                      <p className="font-bold text-gray-900 capitalize">{productInfo.urgency}</p>
-                    </div>
                   </div>
                 </div>
               )}
@@ -806,9 +816,12 @@ export default function BuyerPage() {
                       <div className="md:col-span-1">
                         <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden h-64">
                           <img
-                            src={bestDeal.product.images?.[0] || "/placeholder.svg"}
+                            src={bestDeal.product.images?.[0] || "https://via.placeholder.com/300?text=Product"}
                             alt={bestDeal.product.product_detail}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "https://via.placeholder.com/300?text=No+Image";
+                            }}
                           />
                         </div>
                       </div>
@@ -837,25 +850,127 @@ export default function BuyerPage() {
                           <h4 className="font-bold text-gray-900 mb-2">Why This Deal?</h4>
                           <p className="text-gray-700 mb-4">{bestDeal.recommendation_reason}</p>
                           <button
-                            onClick={() => {
-                              // Set the selected product and trigger payment flow
+                            onClick={async () => {
+                              // For agentic mode, trigger payment directly without opening sidebar
+                              const negotiationData = {
+                                status: "success",
+                                final_price: bestDeal.final_price,
+                                savings: bestDeal.savings,
+                                negotiation_id: `agentic_${Date.now()}`,
+                                messages: [],
+                                product: bestDeal.product,
+                                seller_id: bestDeal.product.seller_id
+                              };
+
+                              // Set all required state variables
                               setSelectedProduct(bestDeal.product);
                               setBuyerBudget(bestDeal.final_price);
-                              setNegotiationResult({
-                                status: "success",
-                                final_price: bestDeal.final_price,
-                                savings: bestDeal.savings,
-                                negotiation_id: `agentic_${Date.now()}`,
-                                messages: []
+                              setNegotiationResult(negotiationData);
+                              setCardNumber("4532 1234 5678 9010");
+                              setCardName("DEALSCOUT BUYER");
+                              setCardExpiry("12 / 28");
+                              setCardCVV("123");
+
+                              // Directly trigger payment modal
+                              setShowPaymentModal(true);
+                              setTransactionDetails({
+                                finalPrice: bestDeal.final_price,
+                                buyerDebit: bestDeal.final_price,
+                                sellerCredit: bestDeal.final_price * 0.95,
+                                platformFee: bestDeal.final_price * 0.05,
+                                negotiation: negotiationData
                               });
-                              // Trigger autonomous payment
-                              setTimeout(() => processAutonomousPayment(bestDeal.final_price, {
-                                status: "success",
-                                final_price: bestDeal.final_price,
-                                savings: bestDeal.savings,
-                                negotiation_id: `agentic_${Date.now()}`,
-                                messages: []
-                              }), 1000);
+
+                              // Simulate autonomous payment flow with visual updates
+                              await new Promise(resolve => setTimeout(resolve, 500));
+                              setPaymentStatus("processing");
+                              await new Promise(resolve => setTimeout(resolve, 2000));
+
+                              // Complete payment
+                              setPaymentStatus("confirmed");
+                              await new Promise(resolve => setTimeout(resolve, 1000));
+
+                              // Close modal and prepare for contract generation
+                              setShowPaymentModal(false);
+                              setPaymentStatus("complete");
+                              await new Promise(resolve => setTimeout(resolve, 500));
+
+                              // Generate contract - use inline data to ensure everything is available
+                              try {
+                                const transactionId = `VIS-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+                                const contractData = {
+                                  negotiation_id: negotiationData.negotiation_id,
+                                  buyer_id: "buyer_demo_001",
+                                  seller_id: bestDeal.product.seller_id,
+                                  listing_id: bestDeal.product.item_id,
+                                  result: {
+                                    status: "success",
+                                    final_price: bestDeal.final_price,
+                                    buyer_savings: bestDeal.savings || 0,
+                                    seller_gain: 0,
+                                    turns: 0,
+                                    history: []
+                                  },
+                                  product: {
+                                    title: bestDeal.product.product_detail,
+                                    condition: bestDeal.product.condition,
+                                    asking_price: bestDeal.product.asking_price,
+                                    location: bestDeal.product.location,
+                                    extras: []
+                                  },
+                                  payment_details: {
+                                    transaction_id: transactionId,
+                                    payment_method: "Visa",
+                                    card_last_4: "9010",
+                                    cardholder_name: "DEALSCOUT BUYER",
+                                    transaction_timestamp: new Date().toISOString(),
+                                    amount_paid: bestDeal.final_price,
+                                    seller_receives: bestDeal.final_price * 0.95
+                                  }
+                                };
+
+                                const response = await fetch("http://localhost:8000/api/contract/create", {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify(contractData),
+                                });
+
+                                if (response.ok) {
+                                  const blob = await response.blob();
+                                  const contentDisposition = response.headers.get('Content-Disposition');
+                                  let filename = 'DealScout_Contract.pdf';
+                                  if (contentDisposition) {
+                                    const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
+                                    if (matches != null && matches[1]) {
+                                      filename = matches[1].replace(/['"]/g, '');
+                                    }
+                                  }
+
+                                  // Trigger download
+                                  const url = window.URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = filename;
+                                  a.style.display = 'none';
+                                  document.body.appendChild(a);
+                                  a.click();
+
+                                  setTimeout(() => {
+                                    window.URL.revokeObjectURL(url);
+                                    document.body.removeChild(a);
+                                  }, 100);
+                                }
+                              } catch (error) {
+                                console.error("Error generating contract:", error);
+                              }
+
+                              // Clear the selected product after contract is generated
+                              setTimeout(() => {
+                                setSelectedProduct(null);
+                                setPaymentStatus("idle");
+                              }, 1000);
                             }}
                             className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 px-6 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl"
                           >
@@ -890,9 +1005,12 @@ export default function BuyerPage() {
                         <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-100">
                           <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
                             <img
-                              src={neg.product.images?.[0] || "/placeholder.svg"}
+                              src={neg.product.images?.[0] || "https://via.placeholder.com/200?text=Product"}
                               alt={neg.product.product_detail}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = "https://via.placeholder.com/200?text=No+Image";
+                              }}
                             />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -929,25 +1047,31 @@ export default function BuyerPage() {
                         </div>
 
                         {/* Chat messages */}
-                        {neg.messages.length > 0 && (
+                        {(neg.messages.length > 0 || neg.status === "negotiating") && (
                           <div className="p-4 bg-gray-50 border-t border-gray-200">
                             <h5 className="text-xs font-bold text-gray-700 mb-2">💬 Negotiation Chat</h5>
                             <div className="space-y-2 max-h-40 overflow-y-auto">
-                              {neg.messages.slice(-4).map((msg: any, idx: number) => (
-                                <div
-                                  key={idx}
-                                  className={`text-xs p-2 rounded ${
-                                    msg.role === "buyer"
-                                      ? "bg-blue-100 text-blue-900"
-                                      : "bg-green-100 text-green-900"
-                                  }`}
-                                >
-                                  <span className="font-bold">
-                                    {msg.role === "buyer" ? "🤖 Buyer Agent" : "👤 Seller"}:
-                                  </span>{" "}
-                                  {msg.content}
+                              {neg.messages.length > 0 ? (
+                                neg.messages.slice(-4).map((msg: any, idx: number) => (
+                                  <div
+                                    key={idx}
+                                    className={`text-xs p-2 rounded ${
+                                      msg.role === "buyer"
+                                        ? "bg-blue-100 text-blue-900"
+                                        : "bg-green-100 text-green-900"
+                                    }`}
+                                  >
+                                    <span className="font-bold">
+                                      {msg.role === "buyer" ? "🤖 Buyer Agent" : "👤 Seller"}:
+                                    </span>{" "}
+                                    {msg.content}
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-xs text-gray-600 italic p-2">
+                                  Negotiation in progress...
                                 </div>
-                              ))}
+                              )}
                             </div>
                           </div>
                         )}
@@ -965,46 +1089,6 @@ export default function BuyerPage() {
               {/* Search Results */}
               {hasSearched && (
             <div className="mt-8">
-              {queryAnalysis && (
-                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-l-4 border-blue-500 rounded-lg p-6 mb-8 shadow-sm">
-                  <h3 className="font-bold text-blue-900 mb-3 text-lg flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    Search Analysis
-                  </h3>
-                  <p className="text-blue-800 mb-4">
-                    Query: <span className="font-semibold">"{queryAnalysis.original_query}"</span>
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    {queryAnalysis.category && (
-                      <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-blue-100">
-                        <span className="text-xs text-blue-600 font-medium uppercase tracking-wide">Category</span>
-                        <p className="text-blue-900 font-semibold mt-1 capitalize">
-                          {queryAnalysis.category.replace("-", " ")}
-                        </p>
-                      </div>
-                    )}
-                    {queryAnalysis.max_price && (
-                      <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-blue-100">
-                        <span className="text-xs text-blue-600 font-medium uppercase tracking-wide">Max Price</span>
-                        <p className="text-blue-900 font-semibold mt-1">
-                          ${queryAnalysis.max_price}
-                        </p>
-                      </div>
-                    )}
-                    {queryAnalysis.min_price && (
-                      <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-blue-100">
-                        <span className="text-xs text-blue-600 font-medium uppercase tracking-wide">Min Price</span>
-                        <p className="text-blue-900 font-semibold mt-1">
-                          ${queryAnalysis.min_price}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {isSearching ? (
                 <div className="flex justify-center items-center min-h-96">
                   <div className="text-center">
@@ -1800,6 +1884,7 @@ export default function BuyerPage() {
           </div>
         </div>
       )}
+
 
     </div>
   );

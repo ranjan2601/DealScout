@@ -121,7 +121,7 @@ Return ONLY valid JSON, no other text."""
                 "X-Title": "DealScout"
             },
             json={
-                "model": "claude-3.5-sonnet",
+                "model": "anthropic/claude-sonnet-4.5",
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.3,
             }

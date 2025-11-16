@@ -254,6 +254,50 @@ def call_llm(system_prompt: str, user_prompt: str) -> str:
     return result['choices'][0]['message']['content'].strip()
 
 
+def generate_smart_db_query(search_query: str) -> Dict[str, Any]:
+    """
+    Use LLM to intelligently generate a MongoDB query from natural language search.
+    Returns a properly formatted MongoDB query filter.
+    """
+    system_prompt = """You are a MongoDB query expert. Convert natural language search queries into MongoDB filter objects.
+
+IMPORTANT RULES:
+1. Return ONLY valid JSON - no explanation, no markdown, no comments
+2. Use MongoDB operators: $regex (case-insensitive), $lte, $gte, $in, $or, etc.
+3. Search in these fields: product_detail, description, category
+4. Always use "$options": "i" for case-insensitive regex matching
+5. Extract price constraints if mentioned
+6. Return empty filters {} if query is too vague
+
+EXAMPLES:
+- "apple iphone under 500" → {"product_detail": {"$regex": "iphone|apple", "$options": "i"}, "asking_price": {"$lte": 500}}
+- "gaming laptop" → {"$or": [{"product_detail": {"$regex": "gaming|laptop", "$options": "i"}}, {"description": {"$regex": "gaming|laptop", "$options": "i"}}]}
+- "bike" → {"$or": [{"product_detail": {"$regex": "bike", "$options": "i"}}, {"description": {"$regex": "bike", "$options": "i"}}]}"""
+
+    user_prompt = f"""Generate MongoDB query for: "{search_query}"
+Return ONLY the JSON filter object, no other text."""
+
+    try:
+        response = call_llm(system_prompt, user_prompt)
+        # Parse the response as JSON
+        query_filter = json.loads(response)
+        print(f"DEBUG: LLM generated query: {query_filter}")
+        return query_filter
+    except json.JSONDecodeError as e:
+        print(f"ERROR: Failed to parse LLM query response: {response}")
+        # Fallback: create a simple regex query
+        return {
+            "$or": [
+                {"product_detail": {"$regex": search_query, "$options": "i"}},
+                {"description": {"$regex": search_query, "$options": "i"}}
+            ]
+        }
+    except Exception as e:
+        print(f"ERROR in generate_smart_db_query: {e}")
+        # Fallback to empty query
+        return {}
+
+
 def generate_product_questions(product_type: str, product_description: str) -> List[str]:
     """
     Use LLM to dynamically generate relevant questions for a specific product type.
@@ -1072,21 +1116,34 @@ async def parallel_negotiations_stream(request: ParallelNegotiationRequest):
             # Determine max price for search
             max_price = request.max_budget or product_info.get("max_price")
 
-            # Search in MongoDB
-            query_filter = {}
+            # Search in MongoDB using smart LLM-generated query
+            # Build a natural language query from search parameters
+            search_string = request.search_query
             if max_price:
+                search_string += f" under {max_price} dollars"
+
+            # Use LLM to generate smart MongoDB query
+            query_filter = generate_smart_db_query(search_string)
+
+            # Merge price constraint if specified
+            if max_price and "asking_price" not in query_filter:
                 query_filter["asking_price"] = {"$lte": max_price}
 
-            # Add product type filtering (basic keyword matching)
-            if product_info.get("product_type"):
-                query_filter["product_detail"] = {"$regex": product_info["product_type"], "$options": "i"}
+            print(f"DEBUG: Search query: '{search_string}'")
+            print(f"DEBUG: Generated MongoDB filter: {query_filter}")
 
             matching_products = list(sellers_collection.find(query_filter).limit(request.top_n or 5))
+            print(f"DEBUG: Found {len(matching_products)} matching products")
 
-            # Convert ObjectId to string for JSON serialization
+            # Convert ObjectId and datetime to string for JSON serialization
             for product in matching_products:
                 product["_id"] = str(product["_id"])
                 product["id"] = product["item_id"]
+                # Convert datetime fields to ISO format strings
+                if "created_at" in product:
+                    product["created_at"] = product["created_at"].isoformat()
+                if "updated_at" in product:
+                    product["updated_at"] = product["updated_at"].isoformat()
 
             found_message = f"✅ Found {len(matching_products)} matching sellers"
             yield f"data: {json.dumps({'type': 'status', 'message': found_message, 'step': 'found'})}\n\n"
@@ -1102,12 +1159,24 @@ async def parallel_negotiations_stream(request: ParallelNegotiationRequest):
             negotiating_message = f"🤝 Starting parallel negotiations with {len(matching_products)} sellers..."
             yield f"data: {json.dumps({'type': 'status', 'message': negotiating_message, 'step': 'negotiating'})}\n\n"
 
-            # Run negotiations in parallel (simulated for now due to SSE streaming limitations)
+            # Run negotiations sequentially with robust error handling
             negotiation_results = []
+            total_products = len(matching_products)
 
-            for idx, product in enumerate(matching_products):
+            for idx in range(total_products):
+                product = matching_products[idx]
+                product_number = idx + 1
+
+                print(f"\n{'='*80}")
+                print(f"STARTING NEGOTIATION {product_number}/{total_products}")
+                print(f"Product: {product['product_detail']}")
+                print(f"Price: ${product['asking_price']}")
+                print(f"Item ID: {product['item_id']}")
+                print(f"{'='*80}\n")
+
+                # Notify frontend that negotiation is starting
                 yield f"data: {json.dumps({'type': 'negotiation_start', 'seller_id': product['item_id'], 'seller_index': idx})}\n\n"
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(0.2)
 
                 # Convert product to listing format
                 listing = {
@@ -1115,36 +1184,111 @@ async def parallel_negotiations_stream(request: ParallelNegotiationRequest):
                     "title": product["product_detail"],
                     "price": product["asking_price"],
                     "condition": product.get("condition", "good"),
-                    "extras": []
+                    "extras": product.get("extras", [])
                 }
 
-                # Run negotiation
+                # Run negotiation with comprehensive error handling
+                negotiation_success = False
                 try:
-                    result = run_single_negotiation(listing, buyer_budget_override=max_price)
+                    print(f"[NEGOTIATION] Starting negotiation for {product['item_id']}...")
 
-                    # Stream negotiation messages
-                    if result.messages:
-                        for msg in result.messages:
-                            yield f"data: {json.dumps({'type': 'negotiation_message', 'seller_id': product['item_id'], 'message': {'role': msg.role, 'content': msg.content}})}\n\n"
-                            await asyncio.sleep(0.1)
+                    # Call negotiation function
+                    result = run_single_negotiation(
+                        listing=listing,
+                        buyer_budget_override=max_price
+                    )
 
-                    # Mark negotiation complete
-                    final_price = result.negotiated_price if result.status == "success" else None
-                    yield f"data: {json.dumps({'type': 'negotiation_complete', 'seller_id': product['item_id'], 'final_price': final_price, 'result': {'status': result.status, 'savings': result.savings}})}\n\n"
+                    print(f"[NEGOTIATION] Completed for {product['item_id']}")
+                    print(f"[RESULT] Status: {result.status}")
+                    print(f"[RESULT] Original Price: ${result.original_price}")
+                    print(f"[RESULT] Final Price: ${result.negotiated_price}")
+                    print(f"[RESULT] Savings: ${result.savings}")
 
-                    # Add to results if successful
-                    if result.status == "success":
-                        negotiation_results.append({
-                            "seller_id": product["item_id"],
-                            "product": product,
-                            "final_price": result.negotiated_price,
-                            "savings": result.savings,
-                            "messages": result.messages
-                        })
+                    # Stream all negotiation messages to frontend
+                    if result.messages and len(result.messages) > 0:
+                        print(f"[STREAMING] Sending {len(result.messages)} messages to frontend...")
+                        for msg_idx, msg in enumerate(result.messages):
+                            msg_data = {
+                                'type': 'negotiation_message',
+                                'seller_id': product['item_id'],
+                                'message': {
+                                    'role': msg.role,
+                                    'content': msg.content
+                                }
+                            }
+                            yield f"data: {json.dumps(msg_data)}\n\n"
+                            await asyncio.sleep(0.05)
+
+                    # Stream negotiation completion
+                    completion_data = {
+                        'type': 'negotiation_complete',
+                        'seller_id': product['item_id'],
+                        'product_number': product_number,
+                        'total_products': total_products,
+                        'final_price': result.negotiated_price if result.status == "success" else None,
+                        'result': {
+                            'status': result.status,
+                            'original_price': result.original_price,
+                            'negotiated_price': result.negotiated_price,
+                            'savings': result.savings
+                        }
+                    }
+                    yield f"data: {json.dumps(completion_data)}\n\n"
+
+                    # Store result regardless of status (for analysis)
+                    negotiation_results.append({
+                        "seller_id": product["item_id"],
+                        "product": product,
+                        "final_price": result.negotiated_price,
+                        "savings": result.savings,
+                        "messages": result.messages,
+                        "status": result.status
+                    })
+
+                    negotiation_success = True
+                    print(f"[SUCCESS] Negotiation result stored for {product['item_id']}")
 
                 except Exception as e:
-                    print(f"Error negotiating with seller {product['item_id']}: {e}")
-                    yield f"data: {json.dumps({'type': 'negotiation_error', 'seller_id': product['item_id'], 'error': str(e)})}\n\n"
+                    # Capture error and continue to next product
+                    error_message = str(e)
+                    print(f"[ERROR] Exception during negotiation for {product['item_id']}")
+                    print(f"[ERROR] Error message: {error_message}")
+
+                    # Print traceback for debugging
+                    import traceback
+                    traceback.print_exc()
+
+                    # Send error to frontend but continue to next product
+                    error_data = {
+                        'type': 'negotiation_error',
+                        'seller_id': product['item_id'],
+                        'product_number': product_number,
+                        'total_products': total_products,
+                        'error': error_message
+                    }
+                    yield f"data: {json.dumps(error_data)}\n\n"
+                    await asyncio.sleep(0.1)
+
+                    # Still add to results but mark as errored
+                    negotiation_results.append({
+                        "seller_id": product["item_id"],
+                        "product": product,
+                        "final_price": product["asking_price"],
+                        "savings": 0,
+                        "messages": [],
+                        "status": "error"
+                    })
+
+                    print(f"[CONTINUING] Moving to next product ({product_number}/{total_products})")
+
+                print(f"\n{'='*80}")
+                print(f"FINISHED NEGOTIATION {product_number}/{total_products}")
+                print(f"Negotiation Success: {negotiation_success}")
+                print(f"Total Results Collected: {len(negotiation_results)}")
+                print(f"{'='*80}\n")
+
+                # Small delay between negotiations to prevent rate limiting
+                await asyncio.sleep(0.5)
 
             # Step 5: Recommend best deal
             if negotiation_results:
@@ -1159,7 +1303,11 @@ async def parallel_negotiations_stream(request: ParallelNegotiationRequest):
                 else:
                     yield f"data: {json.dumps({'type': 'status', 'message': '⚠️ Could not determine best deal', 'step': 'complete'})}\n\n"
             else:
-                yield f"data: {json.dumps({'type': 'error', 'message': 'No successful negotiations. Try adjusting your search criteria.'})}\n\n"
+                # Still found products but no successful negotiations - show the best available without negotiated price
+                if matching_products:
+                    yield f"data: {json.dumps({'type': 'status', 'message': f'ℹ️ Found {len(matching_products)} products but negotiations were inconclusive. Please try again.', 'step': 'complete'})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'type': 'error', 'message': 'No matching products found for your search'})}\n\n"
 
         except Exception as e:
             error_message = f"Error: {str(e)}"
