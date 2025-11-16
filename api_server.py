@@ -35,7 +35,14 @@ app = FastAPI(title="DealScout API", version="1.0.0")
 # Configure CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://dealscout-web.netlify.app",
+        "https://dealscout-web.vercel.app",
+        "https://*.netlify.app",
+        "https://*.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
