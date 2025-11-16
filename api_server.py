@@ -334,6 +334,94 @@ Extract product information from this query."""
         }
 
 
+def recommend_best_deal(negotiation_results: List[Dict[str, Any]], product_info: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Use LLM to analyze all negotiation results and recommend the best deal.
+    Returns the best deal with detailed reasoning.
+    """
+    if not negotiation_results or len(negotiation_results) == 0:
+        return None
+
+    # If only one result, return it
+    if len(negotiation_results) == 1:
+        result = negotiation_results[0]
+        return {
+            "seller_id": result["seller_id"],
+            "product": result["product"],
+            "final_price": result["final_price"],
+            "savings": result["product"]["asking_price"] - result["final_price"],
+            "recommendation_reason": "This is the only available deal that met your requirements."
+        }
+
+    # Build comparison data for LLM
+    comparison_data = []
+    for idx, result in enumerate(negotiation_results):
+        comparison_data.append({
+            "seller_number": idx + 1,
+            "product": result["product"]["product_detail"],
+            "condition": result["product"]["condition"],
+            "asking_price": result["product"]["asking_price"],
+            "final_price": result["final_price"],
+            "savings": result["product"]["asking_price"] - result["final_price"],
+            "savings_percent": ((result["product"]["asking_price"] - result["final_price"]) / result["product"]["asking_price"]) * 100,
+            "location": result["product"].get("location", "Unknown")
+        })
+
+    system_prompt = f"""You are an expert deal analyzer helping a buyer choose the best product.
+
+The buyer is looking for: {product_info.get('product_type', 'a product')}
+Budget: ${product_info.get('max_price', 'No limit')}
+Desired condition: {product_info.get('min_condition', 'Any')}
+
+Analyze ALL deals and recommend the BEST ONE based on:
+1. Value for money (price vs condition vs features)
+2. Total savings
+3. Product condition
+4. Overall quality-to-price ratio
+
+Return ONLY valid JSON in this exact format:
+{{
+  "best_seller_number": <number 1-{len(negotiation_results)}>,
+  "recommendation_reason": "<2-3 sentence explanation of WHY this is the best deal, comparing it to others>"
+}}"""
+
+    user_prompt = f"""Here are all the deals after negotiation:
+
+{json.dumps(comparison_data, indent=2)}
+
+Which deal offers the best value? Consider both price AND quality."""
+
+    try:
+        response = call_llm(system_prompt, user_prompt)
+        recommendation = json.loads(response)
+
+        # Get the recommended deal
+        best_idx = recommendation["best_seller_number"] - 1
+        if best_idx < 0 or best_idx >= len(negotiation_results):
+            best_idx = 0  # Fallback to first
+
+        best_result = negotiation_results[best_idx]
+
+        return {
+            "seller_id": best_result["seller_id"],
+            "product": best_result["product"],
+            "final_price": best_result["final_price"],
+            "savings": best_result["product"]["asking_price"] - best_result["final_price"],
+            "recommendation_reason": recommendation["recommendation_reason"]
+        }
+    except Exception as e:
+        print(f"Error recommending best deal: {e}")
+        # Fallback: recommend deal with highest savings
+        best_result = max(negotiation_results, key=lambda r: r["product"]["asking_price"] - r["final_price"])
+        return {
+            "seller_id": best_result["seller_id"],
+            "product": best_result["product"],
+            "final_price": best_result["final_price"],
+            "savings": best_result["product"]["asking_price"] - best_result["final_price"],
+            "recommendation_reason": f"This deal offers the highest savings of ${best_result['product']['asking_price'] - best_result['final_price']:.2f}."
+        }
+
+
 def run_single_negotiation(listing: Dict[str, Any], buyer_budget_override: Optional[float] = None) -> NegotiationResult:
     """
     Run negotiation for a single listing between AI buyer and seller agents
@@ -996,14 +1084,64 @@ async def parallel_negotiations_stream(request: ParallelNegotiationRequest):
             # Step 4: Start parallel negotiations
             yield f"data: {json.dumps({'type': 'status', 'message': f'🤝 Starting parallel negotiations with {len(matching_products)} sellers...', 'step': 'negotiating'})}\n\n"
 
-            # TODO: Implement actual parallel negotiation logic here
-            # For now, I'll create a placeholder structure
+            # Run negotiations in parallel (simulated for now due to SSE streaming limitations)
+            negotiation_results = []
 
             for idx, product in enumerate(matching_products):
                 yield f"data: {json.dumps({'type': 'negotiation_start', 'seller_id': product['item_id'], 'seller_index': idx})}\n\n"
+                await asyncio.sleep(0.3)
 
-            # In the next implementation, we'll run actual parallel negotiations here
-            yield f"data: {json.dumps({'type': 'status', 'message': '⏳ Negotiations in progress...', 'step': 'in_progress'})}\n\n"
+                # Convert product to listing format
+                listing = {
+                    "id": product["item_id"],
+                    "title": product["product_detail"],
+                    "price": product["asking_price"],
+                    "condition": product.get("condition", "good"),
+                    "extras": []
+                }
+
+                # Run negotiation
+                try:
+                    result = run_single_negotiation(listing, buyer_budget_override=max_price)
+
+                    # Stream negotiation messages
+                    if result.messages:
+                        for msg in result.messages:
+                            yield f"data: {json.dumps({'type': 'negotiation_message', 'seller_id': product['item_id'], 'message': {'role': msg.role, 'content': msg.content}})}\n\n"
+                            await asyncio.sleep(0.1)
+
+                    # Mark negotiation complete
+                    final_price = result.negotiated_price if result.status == "success" else None
+                    yield f"data: {json.dumps({'type': 'negotiation_complete', 'seller_id': product['item_id'], 'final_price': final_price, 'result': {'status': result.status, 'savings': result.savings}})}\n\n"
+
+                    # Add to results if successful
+                    if result.status == "success":
+                        negotiation_results.append({
+                            "seller_id": product["item_id"],
+                            "product": product,
+                            "final_price": result.negotiated_price,
+                            "savings": result.savings,
+                            "messages": result.messages
+                        })
+
+                except Exception as e:
+                    print(f"Error negotiating with seller {product['item_id']}: {e}")
+                    yield f"data: {json.dumps({'type': 'negotiation_error', 'seller_id': product['item_id'], 'error': str(e)})}\n\n"
+
+            # Step 5: Recommend best deal
+            if negotiation_results:
+                yield f"data: {json.dumps({'type': 'status', 'message': '🤔 Analyzing all deals to find the best one...', 'step': 'analyzing'})}\n\n"
+                await asyncio.sleep(0.5)
+
+                best_deal = recommend_best_deal(negotiation_results, product_info)
+
+                if best_deal:
+                    yield f"data: {json.dumps({'type': 'best_deal', 'data': best_deal})}\n\n"
+                    yield f"data: {json.dumps({'type': 'status', 'message': '✅ Found the best deal for you!', 'step': 'complete'})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'type': 'status', 'message': '⚠️ Could not determine best deal', 'step': 'complete'})}\n\n"
+            else:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'No successful negotiations. Try adjusting your search criteria.'})}\n\n"
 
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'message': f'Error: {str(e)}'})}\n\n"
