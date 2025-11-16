@@ -18,6 +18,7 @@ from pymongo import MongoClient
 from bson import ObjectId
 import json
 import asyncio
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -81,6 +82,12 @@ class ContractRequest(BaseModel):
     result: Dict[str, Any]
     product: Dict[str, Any]
     payment_details: Optional[Dict[str, Any]] = None
+
+
+class ParallelNegotiationRequest(BaseModel):
+    search_query: str
+    max_budget: Optional[float] = None
+    top_n: Optional[int] = 5  # Number of sellers to negotiate with in parallel
 
 
 # Mock listing database (in production, this would be a real database)
@@ -212,6 +219,119 @@ def check_convergence(history: List[Dict[str, Any]], threshold: float = 20) -> b
         return gap <= threshold
 
     return False
+
+
+def call_llm(system_prompt: str, user_prompt: str) -> str:
+    """
+    Helper function to call Claude via OpenRouter API
+    Returns the LLM's text response
+    """
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        raise ValueError("OPENROUTER_API_KEY environment variable not set")
+
+    response = requests.post(
+        url="https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "HTTP-Referer": "https://github.com",
+            "X-Title": "DealScout-HackNYU",
+        },
+        json={
+            "model": "anthropic/claude-3-5-sonnet-20241022",
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            "temperature": 0.7,
+        }
+    )
+
+    result = response.json()
+    if "error" in result:
+        raise Exception(f"API Error: {result['error']}")
+
+    return result['choices'][0]['message']['content'].strip()
+
+
+def generate_product_questions(product_type: str, product_description: str) -> List[str]:
+    """
+    Use LLM to dynamically generate relevant questions for a specific product type.
+    Returns a list of important questions a buyer should ask about the product.
+    """
+    system_prompt = """You are an expert product evaluator. Generate a concise list of the most important questions a buyer should ask when purchasing a specific type of product.
+
+Focus on:
+- Technical specifications
+- Condition and age
+- Warranty and authenticity
+- Functionality and features
+- Value assessment factors
+
+Return ONLY a JSON array of 5-7 specific, relevant questions. No other text."""
+
+    user_prompt = f"""Product Type: {product_type}
+Product Description: {product_description}
+
+Generate 5-7 critical questions a buyer agent should ask the seller to properly evaluate this product's value and condition.
+
+Return format:
+["Question 1?", "Question 2?", "Question 3?", ...]"""
+
+    try:
+        response = call_llm(system_prompt, user_prompt)
+        # Extract JSON array from response
+        questions = json.loads(response)
+        return questions
+    except Exception as e:
+        print(f"Error generating product questions: {e}")
+        # Fallback generic questions
+        return [
+            "What is the exact brand and model?",
+            "How old is the product?",
+            "What is the current condition?",
+            "Are there any defects or issues?",
+            "Is there any warranty remaining?"
+        ]
+
+
+def detect_product_info(search_query: str) -> Dict[str, Any]:
+    """
+    Use LLM to extract product type and requirements from natural language search query.
+    Returns structured product information.
+    """
+    system_prompt = """You are a product search query analyzer. Extract key information from natural language product searches.
+
+Return ONLY valid JSON in this exact format:
+{
+  "product_type": "specific product type (e.g., 'mountain bike', 'gaming laptop', 'DSLR camera')",
+  "category": "general category (e.g., 'bicycle', 'laptop', 'camera', 'smartphone', 'furniture')",
+  "max_price": number or null,
+  "min_condition": "excellent" | "good" | "fair" | "any",
+  "key_requirements": ["requirement 1", "requirement 2"],
+  "urgency": "high" | "normal" | "low"
+}"""
+
+    user_prompt = f"""Search Query: "{search_query}"
+
+Extract product information from this query."""
+
+    try:
+        response = call_llm(system_prompt, user_prompt)
+        # Extract JSON from response
+        product_info = json.loads(response)
+        return product_info
+    except Exception as e:
+        print(f"Error detecting product info: {e}")
+        # Fallback basic parsing
+        return {
+            "product_type": search_query,
+            "category": "general",
+            "max_price": None,
+            "min_condition": "any",
+            "key_requirements": [],
+            "urgency": "normal"
+        }
 
 
 def run_single_negotiation(listing: Dict[str, Any], buyer_budget_override: Optional[float] = None) -> NegotiationResult:
@@ -794,6 +914,101 @@ async def create_contract(request: ContractRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/negotiation/parallel-stream")
+async def parallel_negotiations_stream(request: ParallelNegotiationRequest):
+    """
+    Run parallel negotiations with multiple sellers based on natural language search query.
+    Returns SSE stream with updates from all negotiations as they progress.
+
+    This is the FULL AGENTIC MODE:
+    1. User provides natural language query (e.g., "mountain bike under $1000")
+    2. AI detects product type and requirements
+    3. AI generates product-specific questions
+    4. Buyer agent negotiates with top N sellers simultaneously
+    5. Returns all negotiation results for comparison
+    """
+
+    # Check for API key
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="OPENROUTER_API_KEY not configured on server"
+        )
+
+    async def event_generator():
+        try:
+            # Step 1: Detect product information from search query
+            yield f"data: {json.dumps({'type': 'status', 'message': '🔍 Analyzing your search query...', 'step': 'analyzing'})}\n\n"
+            await asyncio.sleep(0.5)
+
+            product_info = detect_product_info(request.search_query)
+
+            yield f"data: {json.dumps({'type': 'product_info', 'data': product_info})}\n\n"
+            yield f"data: {json.dumps({'type': 'status', 'message': f'✅ Detected: {product_info[\"product_type\"]}', 'step': 'detected'})}\n\n"
+            await asyncio.sleep(0.5)
+
+            # Step 2: Generate product-specific questions
+            yield f"data: {json.dumps({'type': 'status', 'message': '🤔 Generating smart questions for this product...', 'step': 'questions'})}\n\n"
+
+            questions = generate_product_questions(
+                product_info["product_type"],
+                request.search_query
+            )
+
+            yield f"data: {json.dumps({'type': 'questions', 'data': questions})}\n\n"
+            yield f"data: {json.dumps({'type': 'status', 'message': f'✅ Generated {len(questions)} critical questions', 'step': 'questions_ready'})}\n\n"
+            await asyncio.sleep(0.5)
+
+            # Step 3: Find matching products from database
+            yield f"data: {json.dumps({'type': 'status', 'message': '🔎 Searching marketplace for matching products...', 'step': 'searching'})}\n\n"
+
+            # Determine max price for search
+            max_price = request.max_budget or product_info.get("max_price")
+
+            # Search in MongoDB
+            query_filter = {}
+            if max_price:
+                query_filter["asking_price"] = {"$lte": max_price}
+
+            # Add product type filtering (basic keyword matching)
+            if product_info.get("product_type"):
+                query_filter["product_detail"] = {"$regex": product_info["product_type"], "$options": "i"}
+
+            matching_products = list(sellers_collection.find(query_filter).limit(request.top_n or 5))
+
+            # Convert ObjectId to string for JSON serialization
+            for product in matching_products:
+                product["_id"] = str(product["_id"])
+                product["id"] = product["item_id"]
+
+            yield f"data: {json.dumps({'type': 'status', 'message': f'✅ Found {len(matching_products)} matching sellers', 'step': 'found'})}\n\n"
+            yield f"data: {json.dumps({'type': 'products_found', 'data': matching_products})}\n\n"
+
+            if not matching_products:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'No matching products found for your search'})}\n\n"
+                return
+
+            await asyncio.sleep(0.5)
+
+            # Step 4: Start parallel negotiations
+            yield f"data: {json.dumps({'type': 'status', 'message': f'🤝 Starting parallel negotiations with {len(matching_products)} sellers...', 'step': 'negotiating'})}\n\n"
+
+            # TODO: Implement actual parallel negotiation logic here
+            # For now, I'll create a placeholder structure
+
+            for idx, product in enumerate(matching_products):
+                yield f"data: {json.dumps({'type': 'negotiation_start', 'seller_id': product['item_id'], 'seller_index': idx})}\n\n"
+
+            # In the next implementation, we'll run actual parallel negotiations here
+            yield f"data: {json.dumps({'type': 'status', 'message': '⏳ Negotiations in progress...', 'step': 'in_progress'})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Error: {str(e)}'})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 if __name__ == "__main__":
