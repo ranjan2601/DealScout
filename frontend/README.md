@@ -1,4 +1,4 @@
-# SafeMarket - AI-Powered Negotiation Marketplace
+# DealScout - AI-Powered Negotiation Marketplace
 
 A scalable Next.js 14 frontend for a Visa-style, AI-assisted negotiation marketplace. Features intelligent buyer/seller flows, agentic AI marketplace navigation, multi-listing selection, and real-time negotiation with price transparency.
 

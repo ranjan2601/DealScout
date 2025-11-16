@@ -1,10 +1,27 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 
 interface HeaderProps {
   showBackButton?: boolean;
+  onBrowseClick?: () => void;
 }
 
-export default function Header({ showBackButton = false }: HeaderProps) {
+export default function Header({ showBackButton = false, onBrowseClick }: HeaderProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const handleBrowseClick = () => {
+    if (pathname === "/buyer" && onBrowseClick) {
+      // Already on buyer page, just reset the view
+      onBrowseClick();
+    } else {
+      // Navigate to buyer page
+      router.push("/buyer");
+    }
+  };
+
   return (
     <header className="border-b border-gray-200 bg-white sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -53,12 +70,12 @@ export default function Header({ showBackButton = false }: HeaderProps) {
 
           {/* Navigation */}
           <nav className="flex items-center gap-6">
-            <Link
-              href="/buyer"
+            <button
+              onClick={handleBrowseClick}
               className="text-gray-600 hover:text-gray-900 transition-colors font-medium"
             >
               Browse
-            </Link>
+            </button>
             <Link
               href="/seller"
               className="text-gray-600 hover:text-gray-900 transition-colors font-medium"

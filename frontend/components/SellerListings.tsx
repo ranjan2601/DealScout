@@ -56,7 +56,7 @@ export default function SellerListings({
           No listings yet
         </h3>
         <p className="text-gray-600">
-          Create your first listing to start selling on SafeMarket.
+          Create your first listing to start selling on DealScout.
         </p>
       </div>
     );

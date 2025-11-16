@@ -26,7 +26,7 @@ export default function SearchBar({ onSearch, isLoading = false }: SearchBarProp
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search for products... (e.g., 'laptop under $500', 'iPhone in good condition')"
-            className="w-full px-6 py-4 pr-32 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all shadow-sm"
+            className="w-full px-6 py-4 pr-32 text-lg text-gray-900 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all shadow-sm bg-white"
             disabled={isLoading}
           />
           <button

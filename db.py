@@ -1,7 +1,6 @@
-"""
-MongoDB Database Configuration and Models for DealScout
-Handles buyer and seller data persistence
-"""
+"""MongoDB Database Configuration and Models for DealScout
+
+Handles buyer and seller data persistence"""
 
 from pymongo import MongoClient
 from datetime import datetime
@@ -19,11 +18,9 @@ DATABASE_NAME = os.getenv("DATABASE_NAME", "dealscout")
 try:
     client = MongoClient(MONGO_URI)
     db = client[DATABASE_NAME]
-
     # Collections
     sellers_collection = db["sellers"]
     buyers_collection = db["buyers"]
-
     print(f"✓ Connected to MongoDB: {DATABASE_NAME}")
 except Exception as e:
     print(f"✗ MongoDB connection error: {e}")
@@ -86,63 +83,45 @@ class SellerProduct:
         return product
 
     @staticmethod
-    def get_by_seller_id(seller_id: str) -> List[Dict[str, Any]]:
-        """Get all products by a seller"""
+    def get_all() -> List[Dict[str, Any]]:
+        """Get all products from all sellers"""
         if db is None:
             raise Exception("Database not connected")
+        return list(sellers_collection.find({}))
 
-        products = list(sellers_collection.find({"seller_id": seller_id}))
-        return products
+    @staticmethod
+    def get_by_seller_id(seller_id: str) -> List[Dict[str, Any]]:
+        """Get all products by a specific seller"""
+        if db is None:
+            raise Exception("Database not connected")
+        return list(sellers_collection.find({"seller_id": seller_id}))
 
     @staticmethod
     def get_by_item_id(item_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific product by item ID"""
         if db is None:
             raise Exception("Database not connected")
-
-        product = sellers_collection.find_one({"item_id": item_id})
-        return product
+        return sellers_collection.find_one({"item_id": item_id})
 
     @staticmethod
-    def get_all() -> List[Dict[str, Any]]:
-        """Get all products from all sellers"""
+    def update_price(item_id: str, new_price: float) -> bool:
+        """Update a product's asking price"""
         if db is None:
             raise Exception("Database not connected")
-
-        products = list(sellers_collection.find({}))
-        return products
-
-    @staticmethod
-    def update_price(item_id: str, new_asking_price: float) -> bool:
-        """Update asking price for a product"""
-        if db is None:
-            raise Exception("Database not connected")
-
         result = sellers_collection.update_one(
             {"item_id": item_id},
-            {
-                "$set": {
-                    "asking_price": new_asking_price,
-                    "updated_at": datetime.utcnow()
-                }
-            }
+            {"$set": {"asking_price": new_price, "updated_at": datetime.utcnow()}}
         )
         return result.modified_count > 0
 
     @staticmethod
     def update_status(item_id: str, status: str) -> bool:
-        """Update product status (active, sold, delisted)"""
+        """Update a product's status"""
         if db is None:
             raise Exception("Database not connected")
-
         result = sellers_collection.update_one(
             {"item_id": item_id},
-            {
-                "$set": {
-                    "status": status,
-                    "updated_at": datetime.utcnow()
-                }
-            }
+            {"$set": {"status": status, "updated_at": datetime.utcnow()}}
         )
         return result.modified_count > 0
 
@@ -151,7 +130,6 @@ class SellerProduct:
         """Delete a product listing"""
         if db is None:
             raise Exception("Database not connected")
-
         result = sellers_collection.delete_one({"item_id": item_id})
         return result.deleted_count > 0
 
@@ -161,7 +139,7 @@ class SellerProduct:
 # ============================================================================
 
 class BuyerProfile:
-    """Represents a buyer's profile"""
+    """Represents a buyer's profile and preferences"""
 
     @staticmethod
     def create(
@@ -175,7 +153,7 @@ class BuyerProfile:
         Args:
             buyer_id: Buyer's unique ID
             max_budget: Maximum budget for purchases
-            target_price: Target price (defaults to 90% of max_budget)
+            target_price: Optional target price preference
 
         Returns:
             Created buyer document with _id
@@ -186,7 +164,7 @@ class BuyerProfile:
         buyer = {
             "buyer_id": buyer_id,
             "max_budget": max_budget,
-            "target_price": target_price or (max_budget * 0.9),
+            "target_price": target_price,
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         }
@@ -200,41 +178,27 @@ class BuyerProfile:
         """Get a buyer's profile"""
         if db is None:
             raise Exception("Database not connected")
-
-        buyer = buyers_collection.find_one({"buyer_id": buyer_id})
-        return buyer
+        return buyers_collection.find_one({"buyer_id": buyer_id})
 
     @staticmethod
     def update_budget(buyer_id: str, max_budget: float) -> bool:
-        """Update buyer's budget"""
+        """Update a buyer's budget"""
         if db is None:
             raise Exception("Database not connected")
-
         result = buyers_collection.update_one(
             {"buyer_id": buyer_id},
-            {
-                "$set": {
-                    "max_budget": max_budget,
-                    "updated_at": datetime.utcnow()
-                }
-            }
+            {"$set": {"max_budget": max_budget, "updated_at": datetime.utcnow()}}
         )
         return result.modified_count > 0
 
     @staticmethod
     def update_target_price(buyer_id: str, target_price: float) -> bool:
-        """Update buyer's target price"""
+        """Update a buyer's target price"""
         if db is None:
             raise Exception("Database not connected")
-
         result = buyers_collection.update_one(
             {"buyer_id": buyer_id},
-            {
-                "$set": {
-                    "target_price": target_price,
-                    "updated_at": datetime.utcnow()
-                }
-            }
+            {"$set": {"target_price": target_price, "updated_at": datetime.utcnow()}}
         )
         return result.modified_count > 0
 
@@ -243,7 +207,6 @@ class BuyerProfile:
         """Delete a buyer profile"""
         if db is None:
             raise Exception("Database not connected")
-
         result = buyers_collection.delete_one({"buyer_id": buyer_id})
         return result.deleted_count > 0
 
@@ -256,19 +219,18 @@ def init_db():
     """Initialize database indexes"""
     if db is None:
         raise Exception("Database not connected")
-
+    
     # Create indexes for sellers collection
     sellers_collection.create_index("seller_id")
     sellers_collection.create_index("item_id", unique=True)
     sellers_collection.create_index("status")
     sellers_collection.create_index("created_at")
-
+    
     # Create indexes for buyers collection
     buyers_collection.create_index("buyer_id", unique=True)
     buyers_collection.create_index("created_at")
-
+    
     print("✓ Database indexes created")
-
 
 # ============================================================================
 # TEST DATA SEED (Optional)
@@ -278,11 +240,12 @@ def seed_test_data():
     """Seed database with test data - 30 products (10 bikes, 10 macbooks, 10 other)"""
     if db is None:
         raise Exception("Database not connected")
-
+    
     # Clear existing data
     sellers_collection.delete_many({})
     buyers_collection.delete_many({})
-
+    
+    
     # Mountain Bikes (10 entries)
     mountain_bikes = [
         {
@@ -296,7 +259,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "bike-001",
             "category": "mountain-bike",
-            "images": ["https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1532298996011-933d06a14a0a?w=500&h=500&fit=crop"]
+            "images": ["/products/mountain-bike-1.jpg", "/products/mountain-bike-2.jpg"]
         },
         {
             "seller_id": "seller_mb_002",
@@ -309,7 +272,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "bike-002",
             "category": "mountain-bike",
-            "images": ["https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1553381528-5f8c896b3d5e?w=500&h=500&fit=crop"]
+            "images": ["/products/mountain-bike-2.jpg", "/products/mountain-bike-3.jpg"]
         },
         {
             "seller_id": "seller_mb_003",
@@ -322,7 +285,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "bike-003",
             "category": "mountain-bike",
-            "images": ["https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1532298996011-933d06a14a0a?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1544191ba-d6d99c6e2e15?w=500&h=500&fit=crop"]
+            "images": ["/products/mountain-bike-3.jpg", "/products/mountain-bike-1.jpg", "/products/mountain-bike-2.jpg"]
         },
         {
             "seller_id": "seller_mb_004",
@@ -335,7 +298,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "bike-004",
             "category": "mountain-bike",
-            "images": ["https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1553381528-5f8c896b3d5e?w=500&h=500&fit=crop"]
+            "images": ["/products/mountain-bike-1.jpg", "/products/mountain-bike-3.jpg"]
         },
         {
             "seller_id": "seller_mb_005",
@@ -348,7 +311,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "bike-005",
             "category": "mountain-bike",
-            "images": ["https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1532298996011-933d06a14a0a?w=500&h=500&fit=crop"]
+            "images": ["/products/mountain-bike-2.jpg", "/products/mountain-bike-1.jpg"]
         },
         {
             "seller_id": "seller_mb_006",
@@ -361,7 +324,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "bike-006",
             "category": "mountain-bike",
-            "images": ["https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1553381528-5f8c896b3d5e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1544191ba-d6d99c6e2e15?w=500&h=500&fit=crop"]
+            "images": ["/products/mountain-bike-3.jpg", "/products/mountain-bike-2.jpg", "/products/mountain-bike-1.jpg"]
         },
         {
             "seller_id": "seller_mb_007",
@@ -374,7 +337,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "bike-007",
             "category": "mountain-bike",
-            "images": ["https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1532298996011-933d06a14a0a?w=500&h=500&fit=crop"]
+            "images": ["/products/mountain-bike-1.jpg", "/products/mountain-bike-2.jpg"]
         },
         {
             "seller_id": "seller_mb_008",
@@ -387,7 +350,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "bike-008",
             "category": "mountain-bike",
-            "images": ["https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1553381528-5f8c896b3d5e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1544191ba-d6d99c6e2e15?w=500&h=500&fit=crop"]
+            "images": ["/products/mountain-bike-2.jpg", "/products/mountain-bike-3.jpg", "/products/mountain-bike-1.jpg"]
         },
         {
             "seller_id": "seller_mb_009",
@@ -400,7 +363,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "bike-009",
             "category": "mountain-bike",
-            "images": ["https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1532298996011-933d06a14a0a?w=500&h=500&fit=crop"]
+            "images": ["/products/mountain-bike-3.jpg", "/products/mountain-bike-1.jpg"]
         },
         {
             "seller_id": "seller_mb_010",
@@ -413,10 +376,10 @@ def seed_test_data():
             "condition": "good",
             "item_id": "bike-010",
             "category": "mountain-bike",
-            "images": ["https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1553381528-5f8c896b3d5e?w=500&h=500&fit=crop"]
+            "images": ["/products/mountain-bike-1.jpg", "/products/mountain-bike-2.jpg"]
         }
     ]
-
+    
     # MacBooks (10 entries)
     macbooks = [
         {
@@ -430,7 +393,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "macbook-001",
             "category": "macbook",
-            "images": ["https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop"]
+            "images": ["/products/macbook-pro-16.jpg", "/products/macbook-air-m2.jpg", "/products/macbook-pro-14.jpg"]
         },
         {
             "seller_id": "seller_mb_012",
@@ -443,7 +406,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "macbook-002",
             "category": "macbook",
-            "images": ["https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop"]
+            "images": ["/products/macbook-air-m2.jpg", "/products/macbook-pro-16.jpg"]
         },
         {
             "seller_id": "seller_mb_013",
@@ -456,7 +419,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "macbook-003",
             "category": "macbook",
-            "images": ["https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop"]
+            "images": ["/products/macbook-pro-14.jpg", "/products/macbook-pro-16.jpg", "/products/macbook-air-m2.jpg"]
         },
         {
             "seller_id": "seller_mb_014",
@@ -469,7 +432,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "macbook-004",
             "category": "macbook",
-            "images": ["https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop"]
+            "images": ["/products/macbook-air-m2.jpg", "/products/macbook-pro-14.jpg"]
         },
         {
             "seller_id": "seller_mb_015",
@@ -482,7 +445,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "macbook-005",
             "category": "macbook",
-            "images": ["https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop"]
+            "images": ["/products/macbook-pro-16.jpg", "/products/macbook-pro-14.jpg", "/products/macbook-air-m2.jpg"]
         },
         {
             "seller_id": "seller_mb_016",
@@ -495,7 +458,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "macbook-006",
             "category": "macbook",
-            "images": ["https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop"]
+            "images": ["/products/macbook-air-m2.jpg", "/products/macbook-pro-16.jpg"]
         },
         {
             "seller_id": "seller_mb_017",
@@ -508,7 +471,7 @@ def seed_test_data():
             "condition": "fair",
             "item_id": "macbook-007",
             "category": "macbook",
-            "images": ["https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop"]
+            "images": ["/products/macbook-pro-14.jpg", "/products/macbook-air-m2.jpg"]
         },
         {
             "seller_id": "seller_mb_018",
@@ -521,7 +484,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "macbook-008",
             "category": "macbook",
-            "images": ["https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop"]
+            "images": ["/products/macbook-air-m2.jpg", "/products/macbook-pro-16.jpg", "/products/macbook-pro-14.jpg"]
         },
         {
             "seller_id": "seller_mb_019",
@@ -534,7 +497,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "macbook-009",
             "category": "macbook",
-            "images": ["https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop"]
+            "images": ["/products/macbook-pro-14.jpg", "/products/macbook-pro-16.jpg"]
         },
         {
             "seller_id": "seller_mb_020",
@@ -547,10 +510,10 @@ def seed_test_data():
             "condition": "good",
             "item_id": "macbook-010",
             "category": "macbook",
-            "images": ["https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&h=500&fit=crop"]
+            "images": ["/products/macbook-air-m2.jpg", "/products/macbook-pro-14.jpg"]
         }
     ]
-
+    
     # Other Products - PlayStation 5, AirPods Max, etc (10 entries)
     other_products = [
         {
@@ -564,7 +527,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "other-001",
             "category": "electronics",
-            "images": ["https://images.unsplash.com/photo-1606841839923-d2eae007e6db?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1538108149393-fbbd81895d0f?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1577720643272-265e434b34b2?w=500&h=500&fit=crop"]
+            "images": ["/products/playstation-5.jpg", "/products/iphone-14-pro.jpg", "/products/ipad-pro-12.jpg"]
         },
         {
             "seller_id": "seller_other_002",
@@ -577,7 +540,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "other-002",
             "category": "electronics",
-            "images": ["https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=500&h=500&fit=crop"]
+            "images": ["/products/airpods-max.jpg", "/products/iphone-14-pro.jpg"]
         },
         {
             "seller_id": "seller_other_003",
@@ -590,7 +553,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "other-003",
             "category": "electronics",
-            "images": ["https://images.unsplash.com/photo-1544244015-27201734744b?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1541523182286-9ffb6701fec8?w=500&h=500&fit=crop"]
+            "images": ["/products/ipad-pro-12.jpg", "/products/airpods-max.jpg", "/products/iphone-14-pro.jpg"]
         },
         {
             "seller_id": "seller_other_004",
@@ -603,7 +566,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "other-004",
             "category": "electronics",
-            "images": ["https://images.unsplash.com/photo-1678652197831-2d180705cd2c?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1663499482523-1c0d3397ce48?w=500&h=500&fit=crop"]
+            "images": ["/products/iphone-14-pro.jpg", "/products/airpods-max.jpg"]
         },
         {
             "seller_id": "seller_other_005",
@@ -616,7 +579,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "other-005",
             "category": "electronics",
-            "images": ["https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=500&h=500&fit=crop"]
+            "images": ["/products/airpods-max.jpg", "/products/iphone-14-pro.jpg"]
         },
         {
             "seller_id": "seller_other_006",
@@ -629,7 +592,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "other-006",
             "category": "electronics",
-            "images": ["https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?w=500&h=500&fit=crop"]
+            "images": ["/products/iphone-14-pro.jpg", "/products/airpods-max.jpg"]
         },
         {
             "seller_id": "seller_other_007",
@@ -642,7 +605,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "other-007",
             "category": "electronics",
-            "images": ["https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1593784991095-a205069470b6?w=500&h=500&fit=crop"]
+            "images": ["/products/playstation-5.jpg", "/products/ipad-pro-12.jpg"]
         },
         {
             "seller_id": "seller_other_008",
@@ -655,7 +618,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "other-008",
             "category": "electronics",
-            "images": ["https://images.unsplash.com/photo-1606041008023-472dfb5e530f?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1519423550014-d5b7f0c6c5ad?w=500&h=500&fit=crop"]
+            "images": ["/products/iphone-14-pro.jpg", "/products/ipad-pro-12.jpg", "/products/playstation-5.jpg"]
         },
         {
             "seller_id": "seller_other_009",
@@ -668,7 +631,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "other-009",
             "category": "electronics",
-            "images": ["https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1507582020474-9a35b7d455d9?w=500&h=500&fit=crop"]
+            "images": ["/products/ipad-pro-12.jpg", "/products/playstation-5.jpg"]
         },
         {
             "seller_id": "seller_other_010",
@@ -681,31 +644,29 @@ def seed_test_data():
             "condition": "new",
             "item_id": "other-010",
             "category": "electronics",
-            "images": ["https://images.unsplash.com/photo-1622979135225-d2ba269cf1ac?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=500&h=500&fit=crop"]
+            "images": ["/products/playstation-5.jpg", "/products/ipad-pro-12.jpg"]
         }
     ]
-
+    
     # Insert all products
     all_products = mountain_bikes + macbooks + other_products
-
     for product in all_products:
         sellers_collection.insert_one(product)
-
+    
     # Create test buyers
     test_buyers = [
         {"buyer_id": "buyer_001", "max_budget": 1000},
         {"buyer_id": "buyer_002", "max_budget": 1500},
         {"buyer_id": "buyer_003", "max_budget": 2000}
     ]
-
+    
     for buyer_data in test_buyers:
         BuyerProfile.create(
             buyer_id=buyer_data["buyer_id"],
             max_budget=buyer_data["max_budget"]
         )
-
+    
     print(f"✓ Test data seeded - {len(all_products)} products created")
-
 
 if __name__ == "__main__":
     init_db()

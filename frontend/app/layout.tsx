@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SafeMarket - AI-Powered Marketplace",
+  title: "DealScout - AI-Powered Marketplace",
   description:
     "AI-assisted negotiation marketplace with Visa-style trust and security",
 };
