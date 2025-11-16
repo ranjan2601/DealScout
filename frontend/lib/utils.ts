@@ -1,72 +1,27 @@
-// Utility functions
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
 
-import { Listing, Filters } from "./types";
-
-/**
- * Filter listings based on the current filter state
- */
-export function filterListings(listings: Listing[], filters: Filters): Listing[] {
-  return listings.filter((listing) => {
-    // Price filter
-    if (filters.minPrice !== undefined && listing.price < filters.minPrice) {
-      return false;
-    }
-    if (filters.maxPrice !== undefined && listing.price > filters.maxPrice) {
-      return false;
-    }
-
-    // Distance filter
-    if (filters.maxDistance !== undefined && listing.distanceMiles > filters.maxDistance) {
-      return false;
-    }
-
-    // Condition filter
-    if (
-      filters.selectedConditions &&
-      filters.selectedConditions.length > 0 &&
-      listing.condition &&
-      !filters.selectedConditions.includes(listing.condition)
-    ) {
-      return false;
-    }
-
-    // Brand filter
-    if (
-      filters.selectedBrands &&
-      filters.selectedBrands.length > 0 &&
-      listing.brand &&
-      !filters.selectedBrands.includes(listing.brand)
-    ) {
-      return false;
-    }
-
-    return true;
-  });
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
 }
 
-/**
- * Format currency values
- */
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
 }
 
-/**
- * Format distance values
- */
 export function formatDistance(miles: number): string {
-  return `${miles.toFixed(1)} miles away`;
+  if (miles < 1) {
+    return `${(miles * 5280).toFixed(0)} ft away`;
+  }
+  return `${miles.toFixed(1)} mi away`;
 }
 
-/**
- * Get badge color based on fraud status
- */
-export function getFraudStatusColor(status?: "clear" | "warning" | "failed"): string {
+export function getFraudStatusColor(status: "clear" | "warning" | "failed"): string {
   switch (status) {
     case "clear":
       return "bg-green-100 text-green-800";
@@ -79,10 +34,7 @@ export function getFraudStatusColor(status?: "clear" | "warning" | "failed"): st
   }
 }
 
-/**
- * Get condition display text
- */
-export function getConditionText(condition?: "new" | "like-new" | "used"): string {
+export function getConditionText(condition: "new" | "like-new" | "used" | "for-parts"): string {
   switch (condition) {
     case "new":
       return "New";
@@ -90,8 +42,9 @@ export function getConditionText(condition?: "new" | "like-new" | "used"): strin
       return "Like New";
     case "used":
       return "Used";
+    case "for-parts":
+      return "For Parts";
     default:
-      return "Unknown";
+      return condition;
   }
 }
-

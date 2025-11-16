@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
@@ -9,79 +9,74 @@ interface SearchBarProps {
 
 export default function SearchBar({ onSearch, isLoading = false }: SearchBarProps) {
   const [query, setQuery] = useState("");
-  const [isAnimating, setIsAnimating] = useState(false);
-
-  useEffect(() => {
-    // Trigger animation on mount
-    setIsAnimating(true);
-  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      onSearch(query);
+      onSearch(query.trim());
     }
   };
 
   return (
-    <div
-      className={`w-full max-w-2xl mx-auto mb-8 transition-all duration-700 ${
-        isAnimating
-          ? "opacity-100 translate-y-0"
-          : "opacity-0 translate-y-8"
-      }`}
-    >
-      <form onSubmit={handleSubmit} className="space-y-3">
+    <div className="w-full">
+      <form onSubmit={handleSubmit} className="relative">
         <div className="relative">
-          <textarea
+          <input
+            type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Find me bikes within 5 miles radius under $1000"
-            className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none shadow-md hover:border-gray-400 transition-colors"
-            rows={3}
+            placeholder="Search for products... (e.g., 'laptop under $500', 'iPhone in good condition')"
+            className="w-full px-6 py-4 pr-32 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all shadow-sm"
             disabled={isLoading}
           />
-          <div className="absolute top-4 right-4">
-            <svg
-              className="w-5 h-5 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
           <button
             type="submit"
             disabled={isLoading || !query.trim()}
-            className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Processing...
-              </span>
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Searching...
+              </>
             ) : (
-              "Ask AI Agent"
+              <>
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                Search
+              </>
             )}
           </button>
         </div>
-
-        <p className="text-sm text-gray-500 text-center">
-          Use natural language to describe what you're looking for
-        </p>
       </form>
+
+      {/* Search Tips */}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <span className="text-sm text-gray-600">Try:</span>
+        {["laptop under $800", "iPhone 13", "gaming chair", "camera"].map((tip) => (
+          <button
+            key={tip}
+            onClick={() => {
+              setQuery(tip);
+              onSearch(tip);
+            }}
+            className="text-sm px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors"
+          >
+            {tip}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -5,14 +5,17 @@ Integrates with Next.js frontend and Python AI negotiation agents
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, AsyncGenerator
 import os
 from dotenv import load_dotenv
 from buyer_agent import make_offer
 from seller_agent import respond_to_offer
 from pymongo import MongoClient
 from bson import ObjectId
+import json
+import asyncio
 
 # Load environment variables
 load_dotenv()
@@ -44,6 +47,7 @@ class NegotiationMessage(BaseModel):
 
 class NegotiationRequest(BaseModel):
     listing_ids: List[str]
+    buyer_budget: Optional[float] = None  # Optional buyer's max budget
 
 
 class NegotiationResult(BaseModel):
@@ -157,28 +161,60 @@ def get_platform_comps(listing_price: float) -> Dict[str, Any]:
     """Generate platform comparables based on listing price"""
     return {
         "platform_comps": [
-            {"listing_id": "comp_001", "price": listing_price * 0.85, "condition": "good", "status": "sold"},
-            {"listing_id": "comp_002", "price": listing_price * 0.88, "condition": "like-new", "status": "sold"},
-            {"listing_id": "comp_003", "price": listing_price * 0.90, "condition": "good", "status": "active"}
+            {"listing_id": "comp_001", "price": int(listing_price * 0.85), "condition": "good", "status": "sold"},
+            {"listing_id": "comp_002", "price": int(listing_price * 0.88), "condition": "like-new", "status": "sold"},
+            {"listing_id": "comp_003", "price": int(listing_price * 0.90), "condition": "good", "status": "active"},
+            {"listing_id": "comp_004", "price": int(listing_price * 0.92), "condition": "like-new", "status": "sold"}
         ],
         "platform_stats": {
-            "avg_price_sold": listing_price * 0.87,
-            "median_price_sold": listing_price * 0.88,
-            "avg_time_to_sell_days": 4.2
+            "avg_price_sold": int(listing_price * 0.87),
+            "median_price_sold": int(listing_price * 0.88),
+            "avg_time_to_sell_days": 4.2,
+            "total_comps_found": 4
         }
     }
 
 
-def run_single_negotiation(listing: Dict[str, Any]) -> NegotiationResult:
+def check_convergence(history: List[Dict[str, Any]], threshold: float = 20) -> bool:
+    """
+    Check if buyer and seller offers have converged within threshold.
+    Returns True if the gap between last buyer and seller offers is <= threshold.
+    """
+    if len(history) < 2:
+        return False
+
+    last_buyer_offer = None
+    last_seller_offer = None
+
+    for turn in reversed(history):
+        if turn.get("party") == "buyer" and last_buyer_offer is None:
+            last_buyer_offer = turn.get("offer_price")
+        elif turn.get("party") == "seller" and last_seller_offer is None:
+            last_seller_offer = turn.get("offer_price")
+
+        if last_buyer_offer is not None and last_seller_offer is not None:
+            break
+
+    if last_buyer_offer is not None and last_seller_offer is not None:
+        gap = abs(last_buyer_offer - last_seller_offer)
+        return gap <= threshold
+
+    return False
+
+
+def run_single_negotiation(listing: Dict[str, Any], buyer_budget_override: Optional[float] = None) -> NegotiationResult:
     """
     Run negotiation for a single listing between AI buyer and seller agents
     """
     listing_id = listing["id"]
     asking_price = listing["price"]
-    
+
     # Set buyer and seller preferences
-    buyer_budget = asking_price * 0.85  # Buyer wants 15% discount
-    seller_minimum = asking_price * 0.92  # Seller will accept up to 8% discount
+    if buyer_budget_override:
+        buyer_budget = buyer_budget_override
+    else:
+        buyer_budget = asking_price * 0.95  # Buyer willing to pay up to 95% of asking price
+    seller_minimum = asking_price * 0.88  # Seller will accept down to 88% of asking price
     
     # Platform data
     platform_data = {
@@ -252,13 +288,20 @@ def run_single_negotiation(listing: Dict[str, Any]) -> NegotiationResult:
                         content=f"Deal reached! Final price: ${final_price:.2f}. Buyer accepted the offer."
                     ))
                     break
-                
+
                 if buyer_response["action"] == "walk_away":
                     messages.append(NegotiationMessage(
                         role="system",
                         content="Negotiation ended. Buyer decided to walk away."
                     ))
                     break
+
+                # Check for convergence - if offers are close, encourage auto-acceptance
+                if check_convergence(history, threshold=20):
+                    messages.append(NegotiationMessage(
+                        role="system",
+                        content="Offers have converged within $20 - parties should consider accepting."
+                    ))
             
             # Seller's turn (even turns)
             else:
@@ -295,13 +338,20 @@ def run_single_negotiation(listing: Dict[str, Any]) -> NegotiationResult:
                         content=f"Deal reached! Final price: ${final_price:.2f}. Seller accepted the offer."
                     ))
                     break
-                
+
                 if seller_response["action"] == "reject":
                     messages.append(NegotiationMessage(
                         role="system",
                         content="Negotiation ended. Seller rejected the offer."
                     ))
                     break
+
+                # Check for convergence - if offers are close, encourage auto-acceptance
+                if check_convergence(history, threshold=20):
+                    messages.append(NegotiationMessage(
+                        role="system",
+                        content="Offers have converged within $20 - parties should consider accepting."
+                    ))
         
         # Determine final status
         if final_price is not None:
@@ -341,6 +391,189 @@ def run_single_negotiation(listing: Dict[str, Any]) -> NegotiationResult:
         )
 
 
+def run_single_negotiation_streaming(listing: Dict[str, Any], buyer_budget_override: Optional[float] = None):
+    """
+    Modified version of run_single_negotiation that yields messages instead of collecting them.
+    Allows for streaming responses to the frontend.
+    """
+    listing_id = listing["id"]
+    asking_price = listing["price"]
+
+    # Set buyer and seller preferences
+    if buyer_budget_override:
+        buyer_budget = buyer_budget_override
+    else:
+        buyer_budget = asking_price * 0.95  # Buyer willing to pay up to 95% of asking price
+    seller_minimum = asking_price * 0.88  # Seller will accept down to 88% of asking price
+
+    # Platform data
+    platform_data = {
+        "product": {
+            "listing_id": listing_id,
+            "title": listing["title"],
+            "asking_price": asking_price,
+            "condition": listing.get("condition", "good"),
+            "extras": listing.get("extras", [])
+        },
+        **get_platform_comps(asking_price)
+    }
+
+    buyer_prefs = {
+        "max_budget": buyer_budget,
+        "target_price": buyer_budget
+    }
+
+    seller_prefs = {
+        "min_acceptable": seller_minimum,
+        "asking_price": asking_price,
+        "can_bundle_extras": listing.get("extras", [])
+    }
+
+    # Initial message
+    yield json.dumps({
+        "type": "message",
+        "role": "system",
+        "content": f"Negotiation started for {listing['title']}. AI agents analyzing market data and conditions..."
+    }) + "\n"
+
+    history = []
+    final_price = None
+    max_turns = 8
+
+    try:
+        for turn_num in range(1, max_turns + 1):
+            # Buyer's turn
+            if turn_num % 2 == 1:
+                buyer_state = {
+                    "buyer_prefs": buyer_prefs,
+                    "platform_data": platform_data,
+                    "history": history,
+                    "turn_number": turn_num
+                }
+
+                buyer_response = make_offer(buyer_state)
+
+                # Stream buyer message
+                yield json.dumps({
+                    "type": "message",
+                    "role": "buyer",
+                    "content": buyer_response["message"]
+                }) + "\n"
+
+                history.append({
+                    "turn": turn_num,
+                    "party": "buyer",
+                    "action": buyer_response["action"],
+                    "offer_price": buyer_response.get("offer_price"),
+                    "message": buyer_response["message"],
+                    "confidence": buyer_response["confidence"]
+                })
+
+                # Check for deal
+                if buyer_response["action"] == "accept":
+                    final_price = buyer_response.get("offer_price")
+                    yield json.dumps({
+                        "type": "message",
+                        "role": "system",
+                        "content": f"Deal reached! Final price: ${final_price:.2f}. Buyer accepted the offer."
+                    }) + "\n"
+                    break
+
+                if buyer_response["action"] == "walk_away":
+                    yield json.dumps({
+                        "type": "message",
+                        "role": "system",
+                        "content": "Negotiation ended. Buyer decided to walk away."
+                    }) + "\n"
+                    break
+
+                # Check convergence
+                if check_convergence(history, threshold=20):
+                    yield json.dumps({
+                        "type": "message",
+                        "role": "system",
+                        "content": "Offers have converged within $20 - parties should consider accepting."
+                    }) + "\n"
+
+            # Seller's turn
+            else:
+                seller_state = {
+                    "seller_prefs": seller_prefs,
+                    "platform_data": platform_data,
+                    "history": history,
+                    "turn_number": turn_num
+                }
+
+                seller_response = respond_to_offer(seller_state)
+
+                # Stream seller message
+                yield json.dumps({
+                    "type": "message",
+                    "role": "seller",
+                    "content": seller_response["message"]
+                }) + "\n"
+
+                history.append({
+                    "turn": turn_num,
+                    "party": "seller",
+                    "action": seller_response["action"],
+                    "offer_price": seller_response.get("offer_price"),
+                    "message": seller_response["message"],
+                    "confidence": seller_response["confidence"]
+                })
+
+                # Check for deal
+                if seller_response["action"] == "accept":
+                    final_price = seller_response.get("offer_price")
+                    yield json.dumps({
+                        "type": "message",
+                        "role": "system",
+                        "content": f"Deal reached! Final price: ${final_price:.2f}. Seller accepted the offer."
+                    }) + "\n"
+                    break
+
+                if seller_response["action"] == "reject":
+                    yield json.dumps({
+                        "type": "message",
+                        "role": "system",
+                        "content": "Negotiation ended. Seller rejected the offer."
+                    }) + "\n"
+                    break
+
+                # Check convergence
+                if check_convergence(history, threshold=20):
+                    yield json.dumps({
+                        "type": "message",
+                        "role": "system",
+                        "content": "Offers have converged within $20 - parties should consider accepting."
+                    }) + "\n"
+
+        # Final summary
+        if final_price is None:
+            final_price = asking_price
+            yield json.dumps({
+                "type": "message",
+                "role": "system",
+                "content": f"No agreement reached after {max_turns} turns. No price reduction available."
+            }) + "\n"
+
+        # Stream final result
+        yield json.dumps({
+            "type": "complete",
+            "listing_id": listing_id,
+            "original_price": asking_price,
+            "negotiated_price": final_price,
+            "status": "success" if final_price < asking_price else "no_deal",
+            "savings": asking_price - final_price if final_price < asking_price else 0
+        }) + "\n"
+
+    except Exception as e:
+        yield json.dumps({
+            "type": "error",
+            "content": f"Error during negotiation: {str(e)}"
+        }) + "\n"
+
+
 @app.get("/")
 async def root():
     """Health check endpoint"""
@@ -351,10 +584,51 @@ async def root():
     }
 
 
+@app.post("/negotiation/stream")
+async def negotiate_listings_stream(request: NegotiationRequest):
+    """
+    Stream AI-powered negotiations for a single listing
+    Returns Server-Sent Events stream for real-time message display
+
+    This endpoint streams negotiations between buyer and seller AI agents
+    using Claude Sonnet via OpenRouter API.
+    """
+
+    # Check for API key
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="OPENROUTER_API_KEY not configured on server"
+        )
+
+    # Only process first listing for streaming
+    listing_id = request.listing_ids[0]
+
+    # Try to fetch from database first, then fall back to mock listings
+    listing = get_product_from_db(listing_id)
+
+    if not listing:
+        # Fall back to mock listings
+        listing = MOCK_LISTINGS.get(listing_id)
+
+    if not listing:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Listing {listing_id} not found"
+        )
+
+    # Stream the negotiation with optional buyer budget override
+    return StreamingResponse(
+        run_single_negotiation_streaming(listing, buyer_budget_override=request.buyer_budget),
+        media_type="text/event-stream"
+    )
+
+
 @app.post("/negotiation", response_model=List[NegotiationResult])
 async def negotiate_listings(request: NegotiationRequest):
     """
-    Run AI-powered negotiations for selected listings
+    Run AI-powered negotiations for selected listings (non-streaming)
 
     This endpoint orchestrates negotiations between buyer and seller AI agents
     using Claude Sonnet via OpenRouter API.
@@ -393,8 +667,8 @@ async def negotiate_listings(request: NegotiationRequest):
             ))
             continue
 
-        # Run negotiation
-        result = run_single_negotiation(listing)
+        # Run negotiation with optional buyer budget override
+        result = run_single_negotiation(listing, buyer_budget_override=request.buyer_budget)
         results.append(result)
 
     return results

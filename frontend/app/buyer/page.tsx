@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Header from "@/components/Header";
 import SearchBar from "@/components/SearchBar";
+import AnimatedTypingBubble from "@/components/AnimatedTypingBubble";
 
 interface Product {
   _id?: string;
@@ -21,6 +22,8 @@ interface Product {
   created_at?: string;
 }
 
+type SidebarView = "product" | "negotiation";
+
 export default function BuyerPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
@@ -28,7 +31,7 @@ export default function BuyerPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [showNegotiationModal, setShowNegotiationModal] = useState(false);
+  const [sidebarView, setSidebarView] = useState<SidebarView>("product");
   const [buyerBudget, setBuyerBudget] = useState(0);
   const [isNegotiating, setIsNegotiating] = useState(false);
   const [negotiationResult, setNegotiationResult] = useState<any>(null);
@@ -81,6 +84,8 @@ export default function BuyerPage() {
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
     setCurrentImageIndex(0);
+    setSidebarView("product");
+    setNegotiationResult(null);
   };
 
   const handleNextImage = () => {
@@ -100,7 +105,8 @@ export default function BuyerPage() {
   const handleNegotiateClick = () => {
     if (selectedProduct) {
       setBuyerBudget(selectedProduct.asking_price);
-      setShowNegotiationModal(true);
+      setSidebarView("negotiation");
+      setNegotiationResult(null);
     }
   };
 
@@ -108,14 +114,18 @@ export default function BuyerPage() {
     if (!selectedProduct || buyerBudget <= 0) return;
 
     setIsNegotiating(true);
+    const streamedMessages: any[] = [];
+    let finalResult: any = null;
+
     try {
-      const response = await fetch("http://localhost:8000/negotiation", {
+      const response = await fetch("http://localhost:8000/negotiation/stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           listing_ids: [selectedProduct.item_id],
+          buyer_budget: buyerBudget,
         }),
       });
 
@@ -123,30 +133,71 @@ export default function BuyerPage() {
         throw new Error("Negotiation failed");
       }
 
-      const data = await response.json();
+      if (!response.body) {
+        throw new Error("No response body");
+      }
 
-      // Transform the API response to match frontend format
-      const result = data[0]; // Extract first result from array
-      if (result.status === "error") {
-        setNegotiationResult({
-          status: "error",
-          message: "Failed to complete negotiation",
-        });
-      } else {
-        // Extract messages from the API response
-        const buyerMessage = result.messages?.find((m: any) => m.role === "buyer")?.content || "";
-        const sellerMessage = result.messages?.find((m: any) => m.role === "seller")?.content || "";
+      // Read the stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+
+        // Process complete lines
+        for (let i = 0; i < lines.length - 1; i++) {
+          const line = lines[i].trim();
+          if (line) {
+            try {
+              const data = JSON.parse(line);
+
+              if (data.type === "message") {
+                // Add message to streamed messages
+                streamedMessages.push({
+                  role: data.role,
+                  content: data.content,
+                });
+
+                // Update UI with the new message
+                setNegotiationResult((prev: any) => ({
+                  ...prev,
+                  messages: streamedMessages,
+                }));
+              } else if (data.type === "complete") {
+                // Final result
+                finalResult = data;
+              } else if (data.type === "error") {
+                throw new Error(data.content);
+              }
+            } catch (e) {
+              console.error("Error parsing message:", e);
+            }
+          }
+        }
+
+        // Keep incomplete line in buffer
+        buffer = lines[lines.length - 1];
+      }
+
+      // Process final result
+      if (finalResult) {
         setNegotiationResult({
-          status: result.status,
-          agreed: result.status === "success",
-          final_price: result.negotiated_price,
-          reasoning: result.status === "success"
-            ? `Successfully negotiated from $${result.original_price} to $${result.negotiated_price}. You saved $${result.savings || 0}!`
-            : "Could not reach an agreement. The seller was not willing to negotiate within your budget.",
-          buyer_agent_message: buyerMessage,
-          seller_agent_response: sellerMessage,
-          seller_notes: `Original: $${result.original_price} | Negotiated: $${result.negotiated_price}`,
+          status: finalResult.status,
+          agreed: finalResult.status === "success",
+          final_price: finalResult.negotiated_price,
+          original_price: finalResult.original_price,
+          savings: finalResult.savings || 0,
+          reasoning:
+            finalResult.status === "success"
+              ? `Successfully negotiated from $${finalResult.original_price} to $${finalResult.negotiated_price}. You saved $${finalResult.savings || 0}!`
+              : "Could not reach an agreement. The seller was not willing to negotiate within your budget.",
+          messages: streamedMessages,
+          seller_notes: `Original: $${finalResult.original_price} | Negotiated: $${finalResult.negotiated_price}`,
         });
       }
     } catch (error) {
@@ -154,10 +205,17 @@ export default function BuyerPage() {
       setNegotiationResult({
         status: "error",
         message: "Failed to initiate negotiation. Please try again.",
+        messages: streamedMessages,
       });
     } finally {
       setIsNegotiating(false);
     }
+  };
+
+  const closeSidebar = () => {
+    setSelectedProduct(null);
+    setSidebarView("product");
+    setNegotiationResult(null);
   };
 
   return (
@@ -315,7 +373,7 @@ export default function BuyerPage() {
         </div>
       </main>
 
-      {/* Right Sidebar for Product Details */}
+      {/* Right Sidebar for Product Details & Negotiation */}
       <div
         className={`fixed right-0 top-0 h-full w-96 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-40 ${
           selectedProduct ? "translate-x-0" : "translate-x-full"
@@ -325,9 +383,11 @@ export default function BuyerPage() {
           <div className="h-full overflow-y-auto flex flex-col">
             {/* Close Button */}
             <div className="sticky top-0 bg-white p-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-900">Product Details</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {sidebarView === "product" ? "Product Details" : "Negotiate Price"}
+              </h3>
               <button
-                onClick={() => setSelectedProduct(null)}
+                onClick={closeSidebar}
                 className="text-gray-500 hover:text-gray-700 p-1"
               >
                 <svg
@@ -347,309 +407,293 @@ export default function BuyerPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Image Carousel */}
-              <div className="relative bg-gray-900 rounded-lg aspect-square flex items-center justify-center overflow-hidden">
-                <img
-                  src={selectedProduct.images[currentImageIndex]}
-                  alt={selectedProduct.product_detail}
-                  className="w-full h-full object-contain"
-                />
+              {sidebarView === "product" && !negotiationResult && (
+                <>
+                  {/* Product View */}
+                  {/* Image Carousel */}
+                  <div className="relative bg-gray-900 rounded-lg aspect-square flex items-center justify-center overflow-hidden">
+                    <img
+                      src={selectedProduct.images[currentImageIndex]}
+                      alt={selectedProduct.product_detail}
+                      className="w-full h-full object-contain"
+                    />
 
-                {selectedProduct.images.length > 1 && (
-                  <>
-                    <button
-                      onClick={handlePrevImage}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-all"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 19l-7-7 7-7"
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={handleNextImage}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-all"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
-                    </button>
+                    {selectedProduct.images.length > 1 && (
+                      <>
+                        <button
+                          onClick={handlePrevImage}
+                          className="absolute left-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-all"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 19l-7-7 7-7"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={handleNextImage}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-all"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
+                        </button>
 
-                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black bg-opacity-60 text-white px-2 py-1 rounded-full text-xs">
-                      {currentImageIndex + 1} / {selectedProduct.images.length}
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black bg-opacity-60 text-white px-2 py-1 rounded-full text-xs">
+                          {currentImageIndex + 1} / {selectedProduct.images.length}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Product Info */}
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">
+                      {selectedProduct.product_detail}
+                    </h2>
+                    {selectedProduct.description && (
+                      <p className="text-gray-600 text-sm">{selectedProduct.description}</p>
+                    )}
+                  </div>
+
+                  {/* Price and Condition */}
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-gray-600 text-sm">Asking Price</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        ${selectedProduct.asking_price}
+                      </p>
                     </div>
-                  </>
-                )}
-              </div>
+                    <div>
+                      <p className="text-gray-600 text-sm mb-1">Condition</p>
+                      <span
+                        className={`inline-block px-3 py-1 rounded font-semibold text-sm ${getConditionColor(
+                          selectedProduct.condition
+                        )}`}
+                      >
+                        {selectedProduct.condition}
+                      </span>
+                    </div>
+                  </div>
 
-              {/* Product Info */}
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">
-                  {selectedProduct.product_detail}
-                </h2>
-                {selectedProduct.description && (
-                  <p className="text-gray-600 text-sm">{selectedProduct.description}</p>
-                )}
-              </div>
+                  {/* Category and Location */}
+                  <div className="space-y-3 pt-4 border-t border-gray-200">
+                    <div>
+                      <p className="text-gray-600 text-sm">Category</p>
+                      <p className="text-gray-900 capitalize">
+                        {selectedProduct.category.replace("-", " ")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 text-sm">Location</p>
+                      <p className="text-gray-900">
+                        {selectedProduct.location}, {selectedProduct.zip_code}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 text-sm">Seller ID</p>
+                      <p className="text-gray-900 font-mono text-xs">
+                        {selectedProduct.seller_id}
+                      </p>
+                    </div>
+                  </div>
 
-              {/* Price and Condition */}
-              <div className="space-y-3">
-                <div>
-                  <p className="text-gray-600 text-sm">Asking Price</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    ${selectedProduct.asking_price}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-600 text-sm mb-1">Condition</p>
-                  <span
-                    className={`inline-block px-3 py-1 rounded font-semibold text-sm ${getConditionColor(
-                      selectedProduct.condition
-                    )}`}
-                  >
-                    {selectedProduct.condition}
-                  </span>
-                </div>
-              </div>
+                  {/* Action Buttons */}
+                  <div className="space-y-2 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={handleNegotiateClick}
+                      className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                      Negotiate Price
+                    </button>
+                    <button
+                      onClick={closeSidebar}
+                      className="w-full bg-gray-200 text-gray-900 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </>
+              )}
 
-              {/* Category and Location */}
-              <div className="space-y-3 pt-4 border-t border-gray-200">
-                <div>
-                  <p className="text-gray-600 text-sm">Category</p>
-                  <p className="text-gray-900 capitalize">
-                    {selectedProduct.category.replace("-", " ")}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-600 text-sm">Location</p>
-                  <p className="text-gray-900">
-                    {selectedProduct.location}, {selectedProduct.zip_code}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-600 text-sm">Seller ID</p>
-                  <p className="text-gray-900 font-mono text-xs">
-                    {selectedProduct.seller_id}
-                  </p>
-                </div>
-              </div>
+              {sidebarView === "negotiation" && !negotiationResult && (
+                <>
+                  {/* Negotiation Input View */}
+                  <div>
+                    <p className="text-gray-600 mb-6">
+                      Asking Price: <span className="font-semibold text-blue-600">${selectedProduct.asking_price}</span>
+                    </p>
 
-              {/* Action Buttons */}
-              <div className="space-y-2 pt-4 border-t border-gray-200">
-                <button
-                  onClick={handleNegotiateClick}
-                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-                >
-                  Negotiate Price
-                </button>
-                <button
-                  onClick={() => setSelectedProduct(null)}
-                  className="w-full bg-gray-200 text-gray-900 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
-                >
-                  Close
-                </button>
-              </div>
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Your Maximum Budget
+                      </label>
+                      <input
+                        type="number"
+                        value={buyerBudget}
+                        onChange={(e) => setBuyerBudget(Number(e.target.value))}
+                        min={selectedProduct.min_selling_price}
+                        max={selectedProduct.asking_price + 500}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter your max budget"
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        Min: ${selectedProduct.min_selling_price} | Max: ${selectedProduct.asking_price + 500}
+                      </p>
+                    </div>
+
+                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">AI Negotiation:</span> An AI agent will negotiate with the seller's AI agent on your behalf to get the best deal.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setSidebarView("product")}
+                        className="flex-1 bg-gray-200 text-gray-900 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={handleNegotiate}
+                        disabled={isNegotiating || buyerBudget <= 0}
+                        className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isNegotiating ? "Negotiating..." : "Start Negotiation"}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {negotiationResult && (
+                <>
+                  {/* Negotiation Result View */}
+                  {negotiationResult.status === "error" ? (
+                    <div>
+                      <h4 className="text-xl font-bold text-red-600 mb-4">
+                        Negotiation Failed
+                      </h4>
+                      <p className="text-gray-700 mb-6">
+                        {negotiationResult.message}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <h4 className="text-xl font-bold text-gray-900">
+                        Negotiation Complete
+                      </h4>
+
+                      {/* Product Info */}
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <h5 className="font-semibold text-gray-900 mb-3">
+                          Product Details
+                        </h5>
+                        <p className="text-gray-700 text-sm mb-2">
+                          <span className="font-medium">Item:</span> {selectedProduct?.product_detail}
+                        </p>
+                        <p className="text-gray-700 text-sm mb-2">
+                          <span className="font-medium">Asking Price:</span> ${selectedProduct?.asking_price}
+                        </p>
+                        <p className="text-gray-700 text-sm">
+                          <span className="font-medium">Your Budget:</span> ${buyerBudget}
+                        </p>
+                      </div>
+
+                      {/* Negotiation Result */}
+                      <div className={`p-4 rounded-lg ${
+                        negotiationResult.agreed ? "bg-green-50 border border-green-200" : "bg-yellow-50 border border-yellow-200"
+                      }`}>
+                        <h5 className="font-semibold mb-2">
+                          {negotiationResult.agreed ? (
+                            <span className="text-green-700">Deal Reached!</span>
+                          ) : (
+                            <span className="text-yellow-700">Negotiation Summary</span>
+                          )}
+                        </h5>
+                        {negotiationResult.agreed && (
+                          <p className={`text-lg font-bold mb-3 ${
+                            negotiationResult.final_price ? "text-green-600" : "text-gray-700"
+                          }`}>
+                            Final Price: ${negotiationResult.final_price}
+                          </p>
+                        )}
+                        <p className="text-gray-700 text-sm mb-3">
+                          {negotiationResult.reasoning}
+                        </p>
+                      </div>
+
+                      {/* AI Negotiation Transcript */}
+                      <div className="p-4 bg-blue-50 rounded-lg max-h-96 overflow-y-auto">
+                        <h5 className="font-semibold text-gray-900 mb-3 text-sm sticky top-0 bg-blue-50 pb-2">
+                          Full Negotiation Transcript
+                        </h5>
+                        <div className="space-y-3">
+                          {negotiationResult.messages && negotiationResult.messages.length > 0 ? (
+                            negotiationResult.messages.map((msg: any, idx: number) => (
+                              <AnimatedTypingBubble
+                                key={idx}
+                                role={msg.role}
+                                content={msg.content}
+                                isTyping={false}
+                              />
+                            ))
+                          ) : (
+                            <div className="text-gray-600 text-sm">
+                              {isNegotiating ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                                  Negotiation in progress...
+                                </div>
+                              ) : (
+                                "No negotiation messages available"
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => setSidebarView("product")}
+                      className="flex-1 bg-gray-200 text-gray-900 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition-colors text-sm"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={closeSidebar}
+                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
       </div>
-
-      {/* Negotiation Modal */}
-      {showNegotiationModal && selectedProduct && !negotiationResult && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
-          onClick={() => setShowNegotiationModal(false)}
-        >
-          <div
-            className="bg-white rounded-lg max-w-md w-full p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">
-              Enter Your Budget
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Asking Price: <span className="font-semibold text-blue-600">${selectedProduct.asking_price}</span>
-            </p>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Your Maximum Budget
-              </label>
-              <input
-                type="number"
-                value={buyerBudget}
-                onChange={(e) => setBuyerBudget(Number(e.target.value))}
-                min={selectedProduct.min_selling_price}
-                max={selectedProduct.asking_price + 500}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter your max budget"
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                Min: ${selectedProduct.min_selling_price} | Max: ${selectedProduct.asking_price + 500}
-              </p>
-            </div>
-
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-gray-700">
-                <span className="font-semibold">AI Negotiation:</span> An AI agent will negotiate with the seller's AI agent on your behalf to get the best deal.
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowNegotiationModal(false)}
-                className="flex-1 bg-gray-200 text-gray-900 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleNegotiate}
-                disabled={isNegotiating || buyerBudget <= 0}
-                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isNegotiating ? "Negotiating..." : "Start Negotiation"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Negotiation Result Modal */}
-      {negotiationResult && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
-          onClick={() => {
-            setNegotiationResult(null);
-            setShowNegotiationModal(false);
-            setSelectedProduct(null);
-          }}
-        >
-          <div
-            className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {negotiationResult.status === "error" ? (
-              <>
-                <h3 className="text-2xl font-bold text-red-600 mb-4">
-                  Negotiation Failed
-                </h3>
-                <p className="text-gray-700 mb-6">
-                  {negotiationResult.message}
-                </p>
-              </>
-            ) : (
-              <>
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">
-                  Negotiation Complete
-                </h3>
-
-                <div className="space-y-6">
-                  {/* Product Info */}
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h4 className="font-semibold text-gray-900 mb-3">
-                      Product Details
-                    </h4>
-                    <p className="text-gray-700">
-                      <span className="font-medium">Item:</span> {selectedProduct?.product_detail}
-                    </p>
-                    <p className="text-gray-700">
-                      <span className="font-medium">Seller's Asking Price:</span> ${selectedProduct?.asking_price}
-                    </p>
-                    <p className="text-gray-700">
-                      <span className="font-medium">Your Budget:</span> ${buyerBudget}
-                    </p>
-                  </div>
-
-                  {/* Negotiation Result */}
-                  <div className={`p-4 rounded-lg ${
-                    negotiationResult.agreed ? "bg-green-50 border border-green-200" : "bg-yellow-50 border border-yellow-200"
-                  }`}>
-                    <h4 className="font-semibold mb-2">
-                      {negotiationResult.agreed ? (
-                        <span className="text-green-700">Deal Reached!</span>
-                      ) : (
-                        <span className="text-yellow-700">Negotiation Summary</span>
-                      )}
-                    </h4>
-                    {negotiationResult.agreed && (
-                      <p className={`text-lg font-bold mb-3 ${
-                        negotiationResult.final_price ? "text-green-600" : "text-gray-700"
-                      }`}>
-                        Final Price: ${negotiationResult.final_price}
-                      </p>
-                    )}
-                    <p className="text-gray-700 mb-3">
-                      {negotiationResult.reasoning}
-                    </p>
-                    {negotiationResult.seller_notes && (
-                      <p className="text-gray-600 text-sm italic">
-                        Seller: "{negotiationResult.seller_notes}"
-                      </p>
-                    )}
-                  </div>
-
-                  {/* AI Exchange */}
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <h4 className="font-semibold text-gray-900 mb-3">
-                      AI Negotiation Exchange
-                    </h4>
-                    <div className="space-y-3">
-                      {negotiationResult.buyer_agent_message && (
-                        <div>
-                          <p className="text-sm font-medium text-blue-700">Your AI Agent:</p>
-                          <p className="text-sm text-gray-700 mt-1">
-                            {negotiationResult.buyer_agent_message}
-                          </p>
-                        </div>
-                      )}
-                      {negotiationResult.seller_agent_response && (
-                        <div className="mt-3 pt-3 border-t border-blue-200">
-                          <p className="text-sm font-medium text-green-700">Seller's AI Agent:</p>
-                          <p className="text-sm text-gray-700 mt-1">
-                            {negotiationResult.seller_agent_response}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => {
-                  setNegotiationResult(null);
-                  setShowNegotiationModal(false);
-                  setSelectedProduct(null);
-                }}
-                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

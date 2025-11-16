@@ -1,4 +1,4 @@
-// Core data types for the SafeMarket application
+// Core data types for the DealScout application
 
 export interface Listing {
   id: string;
@@ -42,9 +42,8 @@ export interface Filters {
   minPrice?: number;
   maxPrice?: number;
   maxDistance?: number;
-  selectedConditions?: Array<"new" | "like-new" | "used">;
+  selectedConditions?: Array<"new" | "like-new" | "used" | "for-parts">;
   selectedBrands?: string[];
 }
 
 export type UserRole = "buyer" | "seller";
-

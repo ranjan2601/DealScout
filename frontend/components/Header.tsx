@@ -1,4 +1,3 @@
-import React from "react";
 import Link from "next/link";
 
 interface HeaderProps {
@@ -7,17 +6,18 @@ interface HeaderProps {
 
 export default function Header({ showBackButton = false }: HeaderProps) {
   return (
-    <header className="bg-white border-b border-gray-200 shadow-sm">
+    <header className="border-b border-gray-200 bg-white sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 sm:gap-4">
+          {/* Logo and Title */}
+          <div className="flex items-center gap-4">
             {showBackButton && (
               <Link
                 href="/"
-                className="text-gray-600 hover:text-gray-900 transition-colors p-2 hover:bg-gray-100 rounded-lg"
+                className="text-gray-600 hover:text-gray-900 transition-colors"
               >
                 <svg
-                  className="w-5 h-5 sm:w-6 sm:h-6"
+                  className="w-6 h-6"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -31,8 +31,8 @@ export default function Header({ showBackButton = false }: HeaderProps) {
                 </svg>
               </Link>
             )}
-            <Link href="/" className="hover:opacity-80 transition-opacity flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-md">
                 <svg
                   className="w-5 h-5 text-white"
                   fill="none"
@@ -47,12 +47,27 @@ export default function Header({ showBackButton = false }: HeaderProps) {
                   />
                 </svg>
               </div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">DealScout</h1>
+              <h1 className="text-2xl font-bold text-gray-900">DealScout</h1>
             </Link>
           </div>
+
+          {/* Navigation */}
+          <nav className="flex items-center gap-6">
+            <Link
+              href="/buyer"
+              className="text-gray-600 hover:text-gray-900 transition-colors font-medium"
+            >
+              Browse
+            </Link>
+            <Link
+              href="/seller"
+              className="text-gray-600 hover:text-gray-900 transition-colors font-medium"
+            >
+              Sell
+            </Link>
+          </nav>
         </div>
       </div>
     </header>
   );
 }
-
