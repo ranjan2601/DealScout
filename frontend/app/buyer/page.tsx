@@ -789,22 +789,6 @@ export default function BuyerPage() {
                 </div>
               )}
 
-              {/* Product Questions Display */}
-              {productQuestions.length > 0 && (
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 shadow-md border-2 border-amber-200">
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">❓ AI-Generated Questions</h3>
-                  <p className="text-gray-700 mb-3">My buyer agent will ask these questions to evaluate the product:</p>
-                  <ul className="space-y-2">
-                    {productQuestions.map((q, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <span className="text-amber-600 font-bold">{idx + 1}.</span>
-                        <span className="text-gray-800">{q}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
               {/* Best Deal Recommendation */}
               {bestDeal && (
                 <div className="bg-gradient-to-r from-yellow-50 via-amber-50 to-orange-50 rounded-xl p-8 shadow-2xl border-4 border-yellow-400">
@@ -817,31 +801,67 @@ export default function BuyerPage() {
                     <h2 className="text-3xl font-bold text-gray-900">🏆 Best Deal Found!</h2>
                   </div>
                   <div className="bg-white rounded-lg p-6 shadow-lg">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <h3 className="font-bold text-xl text-gray-900 mb-2">{bestDeal.product.product_detail}</h3>
-                        <p className="text-gray-600 mb-4">{bestDeal.product.condition}</p>
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Original Price:</span>
-                            <span className="font-semibold line-through text-gray-500">${bestDeal.product.asking_price}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Negotiated Price:</span>
-                            <span className="font-bold text-2xl text-green-600">${bestDeal.final_price}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">You Save:</span>
-                            <span className="font-bold text-xl text-blue-600">${bestDeal.savings}</span>
-                          </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {/* Product Image */}
+                      <div className="md:col-span-1">
+                        <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden h-64">
+                          <img
+                            src={bestDeal.product.images?.[0] || "/placeholder.svg"}
+                            alt={bestDeal.product.product_detail}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                       </div>
-                      <div>
-                        <h4 className="font-bold text-gray-900 mb-2">Why This Deal?</h4>
-                        <p className="text-gray-700">{bestDeal.recommendation_reason}</p>
-                        <button className="mt-4 w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 px-6 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all">
-                          Accept Best Deal
-                        </button>
+
+                      {/* Product Details */}
+                      <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <h3 className="font-bold text-xl text-gray-900 mb-2">{bestDeal.product.product_detail}</h3>
+                          <p className="text-gray-600 mb-4">Condition: {bestDeal.product.condition}</p>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Original Price:</span>
+                              <span className="font-semibold line-through text-gray-500">${bestDeal.product.asking_price}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Negotiated Price:</span>
+                              <span className="font-bold text-2xl text-green-600">${bestDeal.final_price}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">You Save:</span>
+                              <span className="font-bold text-xl text-blue-600">${bestDeal.savings}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900 mb-2">Why This Deal?</h4>
+                          <p className="text-gray-700 mb-4">{bestDeal.recommendation_reason}</p>
+                          <button
+                            onClick={() => {
+                              // Set the selected product and trigger payment flow
+                              setSelectedProduct(bestDeal.product);
+                              setBuyerBudget(bestDeal.final_price);
+                              setNegotiationResult({
+                                status: "success",
+                                final_price: bestDeal.final_price,
+                                savings: bestDeal.savings,
+                                negotiation_id: `agentic_${Date.now()}`,
+                                messages: []
+                              });
+                              // Trigger autonomous payment
+                              setTimeout(() => processAutonomousPayment(bestDeal.final_price, {
+                                status: "success",
+                                final_price: bestDeal.final_price,
+                                savings: bestDeal.savings,
+                                negotiation_id: `agentic_${Date.now()}`,
+                                messages: []
+                              }), 1000);
+                            }}
+                            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 px-6 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl"
+                          >
+                            Accept Best Deal
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -854,42 +874,81 @@ export default function BuyerPage() {
                   <h3 className="text-2xl font-bold text-gray-900 mb-4">
                     🤝 Live Negotiations ({parallelNegotiations.length} sellers)
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {parallelNegotiations.map((neg) => (
                       <div
                         key={neg.seller_id}
-                        className={`rounded-xl p-4 shadow-lg border-2 ${
+                        className={`rounded-xl shadow-lg border-2 overflow-hidden ${
                           neg.status === "complete"
-                            ? "bg-green-50 border-green-400"
+                            ? "bg-white border-green-400"
                             : neg.status === "negotiating"
-                            ? "bg-blue-50 border-blue-400"
-                            : "bg-gray-50 border-gray-300"
+                            ? "bg-white border-blue-400"
+                            : "bg-white border-gray-300"
                         }`}
                       >
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-bold text-gray-900 truncate">Seller #{neg.index + 1}</h4>
-                          <span
-                            className={`px-2 py-1 text-xs font-bold rounded-full ${
-                              neg.status === "complete"
-                                ? "bg-green-200 text-green-800"
-                                : neg.status === "negotiating"
-                                ? "bg-blue-200 text-blue-800"
-                                : "bg-gray-200 text-gray-800"
-                            }`}
-                          >
-                            {neg.status}
-                          </span>
+                        {/* Header with product image */}
+                        <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-100">
+                          <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
+                            <img
+                              src={neg.product.images?.[0] || "/placeholder.svg"}
+                              alt={neg.product.product_detail}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <h4 className="font-bold text-gray-900 text-sm">Seller #{neg.index + 1}</h4>
+                              <span
+                                className={`px-2 py-1 text-xs font-bold rounded-full ${
+                                  neg.status === "complete"
+                                    ? "bg-green-200 text-green-800"
+                                    : neg.status === "negotiating"
+                                    ? "bg-blue-200 text-blue-800"
+                                    : "bg-gray-200 text-gray-800"
+                                }`}
+                              >
+                                {neg.status}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-700 truncate">{neg.product.product_detail}</p>
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-700 mb-2 line-clamp-2">{neg.product.product_detail}</p>
-                        <div className="text-xs text-gray-600">
-                          <p>Asking: ${neg.product.asking_price}</p>
+
+                        {/* Price info */}
+                        <div className="p-4 bg-white border-t border-gray-100">
+                          <div className="flex justify-between text-sm mb-2">
+                            <span className="text-gray-600">Asking Price:</span>
+                            <span className="font-semibold text-gray-900">${neg.product.asking_price}</span>
+                          </div>
                           {neg.final_price && (
-                            <p className="font-bold text-green-600 mt-1">Final: ${neg.final_price}</p>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Negotiated:</span>
+                              <span className="font-bold text-green-600">${neg.final_price}</span>
+                            </div>
                           )}
                         </div>
+
+                        {/* Chat messages */}
                         {neg.messages.length > 0 && (
-                          <div className="mt-2 text-xs bg-white rounded p-2 max-h-24 overflow-y-auto">
-                            <p className="text-gray-600">Last: {neg.messages[neg.messages.length - 1].content}</p>
+                          <div className="p-4 bg-gray-50 border-t border-gray-200">
+                            <h5 className="text-xs font-bold text-gray-700 mb-2">💬 Negotiation Chat</h5>
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                              {neg.messages.slice(-4).map((msg: any, idx: number) => (
+                                <div
+                                  key={idx}
+                                  className={`text-xs p-2 rounded ${
+                                    msg.role === "buyer"
+                                      ? "bg-blue-100 text-blue-900"
+                                      : "bg-green-100 text-green-900"
+                                  }`}
+                                >
+                                  <span className="font-bold">
+                                    {msg.role === "buyer" ? "🤖 Buyer Agent" : "👤 Seller"}:
+                                  </span>{" "}
+                                  {msg.content}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
