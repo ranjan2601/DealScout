@@ -161,224 +161,174 @@ export default function BuyerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header showBackButton />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Search Bar at the top */}
-        <SearchBar onSearch={handleSearch} isLoading={isSearching} />
+      <main className="flex-1 flex overflow-hidden">
+        <div className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-12 max-w-7xl mx-auto w-full">
+          {/* Search Bar at the top */}
+          <SearchBar onSearch={handleSearch} isLoading={isSearching} />
 
-        {/* Search Results */}
-        {hasSearched && (
-          <div className="mt-8">
-            {queryAnalysis && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <h3 className="font-semibold text-blue-900 mb-2">
-                  Search Analysis
-                </h3>
-                <p className="text-blue-800 text-sm mb-2">
-                  Query: "<strong>{queryAnalysis.original_query}</strong>"
-                </p>
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  {queryAnalysis.category && (
-                    <div>
-                      <span className="text-blue-700">Category:</span>
-                      <span className="text-blue-900 font-medium ml-2">
-                        {queryAnalysis.category.replace("-", " ")}
-                      </span>
-                    </div>
-                  )}
-                  {queryAnalysis.max_price && (
-                    <div>
-                      <span className="text-blue-700">Max Price:</span>
-                      <span className="text-blue-900 font-medium ml-2">
-                        ${queryAnalysis.max_price}
-                      </span>
-                    </div>
-                  )}
-                  {queryAnalysis.min_price && (
-                    <div>
-                      <span className="text-blue-700">Min Price:</span>
-                      <span className="text-blue-900 font-medium ml-2">
-                        ${queryAnalysis.min_price}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {isSearching ? (
-              <div className="flex justify-center items-center min-h-96">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Searching products...</p>
-                </div>
-              </div>
-            ) : searchResults.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-                <p className="text-gray-600">
-                  No products found matching your criteria. Try a different
-                  search!
-                </p>
-              </div>
-            ) : (
-              <>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                  Found {searchResults.length} Product
-                  {searchResults.length !== 1 ? "s" : ""}
-                </h2>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {searchResults.map((product) => (
-                    <div
-                      key={product.item_id}
-                      onClick={() => handleProductClick(product)}
-                      className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer transform hover:scale-105"
-                    >
-                      {/* Image Container */}
-                      <div className="relative bg-gray-200 h-48 overflow-hidden">
-                        <img
-                          src={
-                            product.images[0] ||
-                            "https://via.placeholder.com/500?text=No+Image"
-                          }
-                          alt={product.product_detail}
-                          className="w-full h-full object-cover"
-                        />
-                        {product.images.length > 1 && (
-                          <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs font-semibold">
-                            {product.images.length} photos
-                          </div>
-                        )}
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-3">
-                          <span
-                            className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getConditionColor(
-                              product.condition
-                            )}`}
-                          >
-                            {product.condition}
-                          </span>
-                        </div>
+          {/* Search Results */}
+          {hasSearched && (
+            <div className="mt-8">
+              {queryAnalysis && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h3 className="font-semibold text-blue-900 mb-2">
+                    Search Analysis
+                  </h3>
+                  <p className="text-blue-800 text-sm mb-2">
+                    Query: "<strong>{queryAnalysis.original_query}</strong>"
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    {queryAnalysis.category && (
+                      <div>
+                        <span className="text-blue-700">Category:</span>
+                        <span className="text-blue-900 font-medium ml-2">
+                          {queryAnalysis.category.replace("-", " ")}
+                        </span>
                       </div>
-
-                      {/* Content */}
-                      <div className="p-4">
-                        <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2 text-sm">
-                          {product.product_detail}
-                        </h3>
-
-                        {/* Price */}
-                        <div className="mb-3">
-                          <span className="text-xl font-bold text-blue-600">
-                            ${product.asking_price}
-                          </span>
-                        </div>
-
-                        {/* Location */}
-                        <div className="flex items-center text-gray-600 text-xs mb-2">
-                          <svg
-                            className="w-4 h-4 mr-1"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                            />
-                          </svg>
-                          {product.location}
-                        </div>
-
-                        {/* Category Badge */}
-                        <div className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
-                          {product.category.replace("-", " ")}
-                        </div>
+                    )}
+                    {queryAnalysis.max_price && (
+                      <div>
+                        <span className="text-blue-700">Max Price:</span>
+                        <span className="text-blue-900 font-medium ml-2">
+                          ${queryAnalysis.max_price}
+                        </span>
                       </div>
-
-                      {/* Click to View */}
-                      <div className="px-4 pb-4 pt-0">
-                        <button className="w-full bg-blue-600 text-white py-2 px-3 rounded text-sm font-medium hover:bg-blue-700 transition-colors">
-                          View Details
-                        </button>
+                    )}
+                    {queryAnalysis.min_price && (
+                      <div>
+                        <span className="text-blue-700">Min Price:</span>
+                        <span className="text-blue-900 font-medium ml-2">
+                          ${queryAnalysis.min_price}
+                        </span>
                       </div>
-                    </div>
-                  ))}
+                    )}
+                  </div>
                 </div>
-              </>
-            )}
-          </div>
-        )}
-      </main>
+              )}
 
-      {/* Product Modal */}
-      {selectedProduct && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
-          onClick={() => setSelectedProduct(null)}
-        >
-          <div
-            className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Image Carousel */}
-            <div className="relative bg-gray-900 aspect-video flex items-center justify-center">
-              <img
-                src={selectedProduct.images[currentImageIndex]}
-                alt={selectedProduct.product_detail}
-                className="w-full h-full object-contain"
-              />
-
-              {selectedProduct.images.length > 1 && (
+              {isSearching ? (
+                <div className="flex justify-center items-center min-h-96">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Searching products...</p>
+                  </div>
+                </div>
+              ) : searchResults.length === 0 ? (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+                  <p className="text-gray-600">
+                    No products found matching your criteria. Try a different
+                    search!
+                  </p>
+                </div>
+              ) : (
                 <>
-                  <button
-                    onClick={handlePrevImage}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-all"
-                  >
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 19l-7-7 7-7"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={handleNextImage}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-all"
-                  >
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </button>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                    Found {searchResults.length} Product
+                    {searchResults.length !== 1 ? "s" : ""}
+                  </h2>
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {searchResults.map((product) => (
+                      <div
+                        key={product.item_id}
+                        onClick={() => handleProductClick(product)}
+                        className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer transform hover:scale-105"
+                      >
+                        {/* Image Container */}
+                        <div className="relative bg-gray-200 h-48 overflow-hidden">
+                          <img
+                            src={
+                              product.images[0] ||
+                              "https://via.placeholder.com/500?text=No+Image"
+                            }
+                            alt={product.product_detail}
+                            className="w-full h-full object-cover"
+                          />
+                          {product.images.length > 1 && (
+                            <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs font-semibold">
+                              {product.images.length} photos
+                            </div>
+                          )}
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-3">
+                            <span
+                              className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getConditionColor(
+                                product.condition
+                              )}`}
+                            >
+                              {product.condition}
+                            </span>
+                          </div>
+                        </div>
 
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-60 text-white px-3 py-1 rounded-full text-sm">
-                    {currentImageIndex + 1} / {selectedProduct.images.length}
+                        {/* Content */}
+                        <div className="p-4">
+                          <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2 text-sm">
+                            {product.product_detail}
+                          </h3>
+
+                          {/* Price */}
+                          <div className="mb-3">
+                            <span className="text-xl font-bold text-blue-600">
+                              ${product.asking_price}
+                            </span>
+                          </div>
+
+                          {/* Location */}
+                          <div className="flex items-center text-gray-600 text-xs mb-2">
+                            <svg
+                              className="w-4 h-4 mr-1"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                              />
+                            </svg>
+                            {product.location}
+                          </div>
+
+                          {/* Category Badge */}
+                          <div className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
+                            {product.category.replace("-", " ")}
+                          </div>
+                        </div>
+
+                        {/* Click to View */}
+                        <div className="px-4 pb-4 pt-0">
+                          <button className="w-full bg-blue-600 text-white py-2 px-3 rounded text-sm font-medium hover:bg-blue-700 transition-colors">
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </>
               )}
+            </div>
+          )}
+        </div>
+      </main>
 
+      {/* Right Sidebar for Product Details */}
+      <div
+        className={`fixed right-0 top-0 h-full w-96 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-40 ${
+          selectedProduct ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        {selectedProduct && (
+          <div className="h-full overflow-y-auto flex flex-col">
+            {/* Close Button */}
+            <div className="sticky top-0 bg-white p-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900">Product Details</h3>
               <button
                 onClick={() => setSelectedProduct(null)}
-                className="absolute top-4 right-4 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-all"
+                className="text-gray-500 hover:text-gray-700 p-1"
               >
                 <svg
                   className="w-6 h-6"
@@ -396,27 +346,81 @@ export default function BuyerPage() {
               </button>
             </div>
 
-            {/* Product Details */}
-            <div className="p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                {selectedProduct.product_detail}
-              </h2>
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Image Carousel */}
+              <div className="relative bg-gray-900 rounded-lg aspect-square flex items-center justify-center overflow-hidden">
+                <img
+                  src={selectedProduct.images[currentImageIndex]}
+                  alt={selectedProduct.product_detail}
+                  className="w-full h-full object-contain"
+                />
 
-              {selectedProduct.description && (
-                <div className="mb-6 pb-4 border-b border-gray-200">
-                  <p className="text-gray-700">{selectedProduct.description}</p>
-                </div>
-              )}
+                {selectedProduct.images.length > 1 && (
+                  <>
+                    <button
+                      onClick={handlePrevImage}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-all"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 19l-7-7 7-7"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={handleNextImage}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-all"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </button>
 
-              <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black bg-opacity-60 text-white px-2 py-1 rounded-full text-xs">
+                      {currentImageIndex + 1} / {selectedProduct.images.length}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Product Info */}
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                  {selectedProduct.product_detail}
+                </h2>
+                {selectedProduct.description && (
+                  <p className="text-gray-600 text-sm">{selectedProduct.description}</p>
+                )}
+              </div>
+
+              {/* Price and Condition */}
+              <div className="space-y-3">
                 <div>
                   <p className="text-gray-600 text-sm">Asking Price</p>
-                  <p className="text-3xl font-bold text-blue-600">
+                  <p className="text-2xl font-bold text-blue-600">
                     ${selectedProduct.asking_price}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-600 text-sm">Condition</p>
+                  <p className="text-gray-600 text-sm mb-1">Condition</p>
                   <span
                     className={`inline-block px-3 py-1 rounded font-semibold text-sm ${getConditionColor(
                       selectedProduct.condition
@@ -425,46 +429,49 @@ export default function BuyerPage() {
                     {selectedProduct.condition}
                   </span>
                 </div>
+              </div>
+
+              {/* Category and Location */}
+              <div className="space-y-3 pt-4 border-t border-gray-200">
                 <div>
                   <p className="text-gray-600 text-sm">Category</p>
-                  <p className="text-lg font-semibold text-gray-900 capitalize">
+                  <p className="text-gray-900 capitalize">
                     {selectedProduct.category.replace("-", " ")}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-600 text-sm">Location</p>
+                  <p className="text-gray-900">
+                    {selectedProduct.location}, {selectedProduct.zip_code}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-600 text-sm">Seller ID</p>
+                  <p className="text-gray-900 font-mono text-xs">
+                    {selectedProduct.seller_id}
                   </p>
                 </div>
               </div>
 
-              <div className="mb-6 pb-6 border-b border-gray-200">
-                <p className="text-gray-600 text-sm mb-2">Location</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {selectedProduct.location}, {selectedProduct.zip_code}
-                </p>
-              </div>
-
-              <div className="mb-6">
-                <p className="text-gray-600 text-sm mb-1">Seller</p>
-                <p className="text-gray-900 font-mono text-sm">
-                  {selectedProduct.seller_id}
-                </p>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setSelectedProduct(null)}
-                  className="flex-1 bg-gray-200 text-gray-900 py-3 px-4 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
-                >
-                  Close
-                </button>
+              {/* Action Buttons */}
+              <div className="space-y-2 pt-4 border-t border-gray-200">
                 <button
                   onClick={handleNegotiateClick}
-                  className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
                 >
                   Negotiate Price
+                </button>
+                <button
+                  onClick={() => setSelectedProduct(null)}
+                  className="w-full bg-gray-200 text-gray-900 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                >
+                  Close
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Negotiation Modal */}
       {showNegotiationModal && selectedProduct && !negotiationResult && (
@@ -646,4 +653,3 @@ export default function BuyerPage() {
     </div>
   );
 }
-

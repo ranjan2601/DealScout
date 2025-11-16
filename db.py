@@ -296,7 +296,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "bike-001",
             "category": "mountain-bike",
-            "images": ["https://via.placeholder.com/500?text=Trek+Mountain+Bike+1", "https://via.placeholder.com/500?text=Trek+Mountain+Bike+2"]
+            "images": ["https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1532298996011-933d06a14a0a?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_002",
@@ -309,7 +309,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "bike-002",
             "category": "mountain-bike",
-            "images": ["https://via.placeholder.com/500?text=Giant+Talon+1", "https://via.placeholder.com/500?text=Giant+Talon+2"]
+            "images": ["https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1553381528-5f8c896b3d5e?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_003",
@@ -322,7 +322,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "bike-003",
             "category": "mountain-bike",
-            "images": ["https://via.placeholder.com/500?text=Specialized+Epic+1", "https://via.placeholder.com/500?text=Specialized+Epic+2", "https://via.placeholder.com/500?text=Specialized+Epic+3"]
+            "images": ["https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1532298996011-933d06a14a0a?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1544191ba-d6d99c6e2e15?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_004",
@@ -335,7 +335,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "bike-004",
             "category": "mountain-bike",
-            "images": ["https://via.placeholder.com/500?text=Cannondale+Cujo+1", "https://via.placeholder.com/500?text=Cannondale+Cujo+2"]
+            "images": ["https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1553381528-5f8c896b3d5e?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_005",
@@ -348,7 +348,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "bike-005",
             "category": "mountain-bike",
-            "images": ["https://via.placeholder.com/500?text=Scott+Aspect+1", "https://via.placeholder.com/500?text=Scott+Aspect+2"]
+            "images": ["https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1532298996011-933d06a14a0a?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_006",
@@ -361,7 +361,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "bike-006",
             "category": "mountain-bike",
-            "images": ["https://via.placeholder.com/500?text=Santa+Cruz+1", "https://via.placeholder.com/500?text=Santa+Cruz+2", "https://via.placeholder.com/500?text=Santa+Cruz+3"]
+            "images": ["https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1553381528-5f8c896b3d5e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1544191ba-d6d99c6e2e15?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_007",
@@ -374,7 +374,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "bike-007",
             "category": "mountain-bike",
-            "images": ["https://via.placeholder.com/500?text=Yamaha+Style+1", "https://via.placeholder.com/500?text=Yamaha+Style+2"]
+            "images": ["https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1532298996011-933d06a14a0a?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_008",
@@ -387,7 +387,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "bike-008",
             "category": "mountain-bike",
-            "images": ["https://via.placeholder.com/500?text=Trek+Slash+1", "https://via.placeholder.com/500?text=Trek+Slash+2", "https://via.placeholder.com/500?text=Trek+Slash+3"]
+            "images": ["https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1553381528-5f8c896b3d5e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1544191ba-d6d99c6e2e15?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_009",
@@ -400,7 +400,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "bike-009",
             "category": "mountain-bike",
-            "images": ["https://via.placeholder.com/500?text=Giant+Reign+1", "https://via.placeholder.com/500?text=Giant+Reign+2"]
+            "images": ["https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1532298996011-933d06a14a0a?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_010",
@@ -413,7 +413,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "bike-010",
             "category": "mountain-bike",
-            "images": ["https://via.placeholder.com/500?text=Specialized+Rockhopper+1", "https://via.placeholder.com/500?text=Specialized+Rockhopper+2"]
+            "images": ["https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1553381528-5f8c896b3d5e?w=500&h=500&fit=crop"]
         }
     ]
 
@@ -430,7 +430,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "macbook-001",
             "category": "macbook",
-            "images": ["https://via.placeholder.com/500?text=MacBook+Pro+16+1", "https://via.placeholder.com/500?text=MacBook+Pro+16+2", "https://via.placeholder.com/500?text=MacBook+Pro+16+3"]
+            "images": ["https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_012",
@@ -443,7 +443,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "macbook-002",
             "category": "macbook",
-            "images": ["https://via.placeholder.com/500?text=MacBook+Air+M2+1", "https://via.placeholder.com/500?text=MacBook+Air+M2+2"]
+            "images": ["https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_013",
@@ -456,7 +456,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "macbook-003",
             "category": "macbook",
-            "images": ["https://via.placeholder.com/500?text=MacBook+Pro+14+1", "https://via.placeholder.com/500?text=MacBook+Pro+14+2", "https://via.placeholder.com/500?text=MacBook+Pro+14+3"]
+            "images": ["https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_014",
@@ -469,7 +469,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "macbook-004",
             "category": "macbook",
-            "images": ["https://via.placeholder.com/500?text=MacBook+Air+2017+1", "https://via.placeholder.com/500?text=MacBook+Air+2017+2"]
+            "images": ["https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_015",
@@ -482,7 +482,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "macbook-005",
             "category": "macbook",
-            "images": ["https://via.placeholder.com/500?text=MacBook+Pro+16+Max+1", "https://via.placeholder.com/500?text=MacBook+Pro+16+Max+2", "https://via.placeholder.com/500?text=MacBook+Pro+16+Max+3"]
+            "images": ["https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_016",
@@ -495,7 +495,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "macbook-006",
             "category": "macbook",
-            "images": ["https://via.placeholder.com/500?text=MacBook+Air+M1+1", "https://via.placeholder.com/500?text=MacBook+Air+M1+2"]
+            "images": ["https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_017",
@@ -508,7 +508,7 @@ def seed_test_data():
             "condition": "fair",
             "item_id": "macbook-007",
             "category": "macbook",
-            "images": ["https://via.placeholder.com/500?text=MacBook+Pro+2015+1", "https://via.placeholder.com/500?text=MacBook+Pro+2015+2"]
+            "images": ["https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_018",
@@ -521,7 +521,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "macbook-008",
             "category": "macbook",
-            "images": ["https://via.placeholder.com/500?text=MacBook+Air+Silver+1", "https://via.placeholder.com/500?text=MacBook+Air+Silver+2", "https://via.placeholder.com/500?text=MacBook+Air+Silver+3"]
+            "images": ["https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_019",
@@ -534,7 +534,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "macbook-009",
             "category": "macbook",
-            "images": ["https://via.placeholder.com/500?text=MacBook+Pro+14+Pro+Max+1", "https://via.placeholder.com/500?text=MacBook+Pro+14+Pro+Max+2"]
+            "images": ["https://images.unsplash.com/photo-1505101556388-e86a28dff2aa?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_mb_020",
@@ -547,7 +547,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "macbook-010",
             "category": "macbook",
-            "images": ["https://via.placeholder.com/500?text=MacBook+Air+11+1", "https://via.placeholder.com/500?text=MacBook+Air+11+2"]
+            "images": ["https://images.unsplash.com/photo-1425953779944-59a018b5f929?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&h=500&fit=crop"]
         }
     ]
 
@@ -564,7 +564,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "other-001",
             "category": "electronics",
-            "images": ["https://via.placeholder.com/500?text=PS5+1", "https://via.placeholder.com/500?text=PS5+2", "https://via.placeholder.com/500?text=PS5+3"]
+            "images": ["https://images.unsplash.com/photo-1606841839923-d2eae007e6db?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1538108149393-fbbd81895d0f?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1577720643272-265e434b34b2?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_other_002",
@@ -577,7 +577,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "other-002",
             "category": "electronics",
-            "images": ["https://via.placeholder.com/500?text=AirPods+Max+1", "https://via.placeholder.com/500?text=AirPods+Max+2"]
+            "images": ["https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_other_003",
@@ -590,7 +590,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "other-003",
             "category": "electronics",
-            "images": ["https://via.placeholder.com/500?text=iPad+Pro+1", "https://via.placeholder.com/500?text=iPad+Pro+2", "https://via.placeholder.com/500?text=iPad+Pro+3"]
+            "images": ["https://images.unsplash.com/photo-1544244015-27201734744b?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1541523182286-9ffb6701fec8?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_other_004",
