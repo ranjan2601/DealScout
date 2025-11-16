@@ -603,7 +603,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "other-004",
             "category": "electronics",
-            "images": ["https://via.placeholder.com/500?text=iPhone+14+Pro+1", "https://via.placeholder.com/500?text=iPhone+14+Pro+2"]
+            "images": ["https://images.unsplash.com/photo-1678652197831-2d180705cd2c?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1663499482523-1c0d3397ce48?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_other_005",
@@ -616,7 +616,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "other-005",
             "category": "electronics",
-            "images": ["https://via.placeholder.com/500?text=Sony+Headphones+1", "https://via.placeholder.com/500?text=Sony+Headphones+2"]
+            "images": ["https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_other_006",
@@ -629,7 +629,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "other-006",
             "category": "electronics",
-            "images": ["https://via.placeholder.com/500?text=Apple+Watch+1", "https://via.placeholder.com/500?text=Apple+Watch+2"]
+            "images": ["https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_other_007",
@@ -642,7 +642,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "other-007",
             "category": "electronics",
-            "images": ["https://via.placeholder.com/500?text=Samsung+TV+1", "https://via.placeholder.com/500?text=Samsung+TV+2"]
+            "images": ["https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1593784991095-a205069470b6?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_other_008",
@@ -655,7 +655,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "other-008",
             "category": "electronics",
-            "images": ["https://via.placeholder.com/500?text=GoPro+Hero+11+1", "https://via.placeholder.com/500?text=GoPro+Hero+11+2", "https://via.placeholder.com/500?text=GoPro+Hero+11+3"]
+            "images": ["https://images.unsplash.com/photo-1606041008023-472dfb5e530f?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1519423550014-d5b7f0c6c5ad?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_other_009",
@@ -668,7 +668,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "other-009",
             "category": "electronics",
-            "images": ["https://via.placeholder.com/500?text=DJI+Air+3+1", "https://via.placeholder.com/500?text=DJI+Air+3+2"]
+            "images": ["https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1507582020474-9a35b7d455d9?w=500&h=500&fit=crop"]
         },
         {
             "seller_id": "seller_other_010",
@@ -681,7 +681,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "other-010",
             "category": "electronics",
-            "images": ["https://via.placeholder.com/500?text=Meta+Quest+3+1", "https://via.placeholder.com/500?text=Meta+Quest+3+2"]
+            "images": ["https://images.unsplash.com/photo-1622979135225-d2ba269cf1ac?w=500&h=500&fit=crop", "https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=500&h=500&fit=crop"]
         }
     ]
 
