@@ -1035,7 +1035,9 @@ async def parallel_negotiations_stream(request: ParallelNegotiationRequest):
             product_info = detect_product_info(request.search_query)
 
             yield f"data: {json.dumps({'type': 'product_info', 'data': product_info})}\n\n"
-            yield f"data: {json.dumps({'type': 'status', 'message': f'✅ Detected: {product_info[\"product_type\"]}', 'step': 'detected'})}\n\n"
+
+            detected_message = f"✅ Detected: {product_info.get('product_type', 'product')}"
+            yield f"data: {json.dumps({'type': 'status', 'message': detected_message, 'step': 'detected'})}\n\n"
             await asyncio.sleep(0.5)
 
             # Step 2: Generate product-specific questions
@@ -1047,7 +1049,9 @@ async def parallel_negotiations_stream(request: ParallelNegotiationRequest):
             )
 
             yield f"data: {json.dumps({'type': 'questions', 'data': questions})}\n\n"
-            yield f"data: {json.dumps({'type': 'status', 'message': f'✅ Generated {len(questions)} critical questions', 'step': 'questions_ready'})}\n\n"
+
+            questions_message = f"✅ Generated {len(questions)} critical questions"
+            yield f"data: {json.dumps({'type': 'status', 'message': questions_message, 'step': 'questions_ready'})}\n\n"
             await asyncio.sleep(0.5)
 
             # Step 3: Find matching products from database
@@ -1072,7 +1076,8 @@ async def parallel_negotiations_stream(request: ParallelNegotiationRequest):
                 product["_id"] = str(product["_id"])
                 product["id"] = product["item_id"]
 
-            yield f"data: {json.dumps({'type': 'status', 'message': f'✅ Found {len(matching_products)} matching sellers', 'step': 'found'})}\n\n"
+            found_message = f"✅ Found {len(matching_products)} matching sellers"
+            yield f"data: {json.dumps({'type': 'status', 'message': found_message, 'step': 'found'})}\n\n"
             yield f"data: {json.dumps({'type': 'products_found', 'data': matching_products})}\n\n"
 
             if not matching_products:
@@ -1082,7 +1087,8 @@ async def parallel_negotiations_stream(request: ParallelNegotiationRequest):
             await asyncio.sleep(0.5)
 
             # Step 4: Start parallel negotiations
-            yield f"data: {json.dumps({'type': 'status', 'message': f'🤝 Starting parallel negotiations with {len(matching_products)} sellers...', 'step': 'negotiating'})}\n\n"
+            negotiating_message = f"🤝 Starting parallel negotiations with {len(matching_products)} sellers..."
+            yield f"data: {json.dumps({'type': 'status', 'message': negotiating_message, 'step': 'negotiating'})}\n\n"
 
             # Run negotiations in parallel (simulated for now due to SSE streaming limitations)
             negotiation_results = []
@@ -1144,7 +1150,8 @@ async def parallel_negotiations_stream(request: ParallelNegotiationRequest):
                 yield f"data: {json.dumps({'type': 'error', 'message': 'No successful negotiations. Try adjusting your search criteria.'})}\n\n"
 
         except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'message': f'Error: {str(e)}'})}\n\n"
+            error_message = f"Error: {str(e)}"
+            yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
