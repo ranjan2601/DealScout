@@ -23,6 +23,7 @@ interface Product {
 }
 
 type SidebarView = "product" | "negotiation";
+type PaymentStatus = "idle" | "reviewing" | "processing" | "confirmed" | "complete";
 
 export default function BuyerPage() {
   const [isSearching, setIsSearching] = useState(false);
@@ -36,6 +37,8 @@ export default function BuyerPage() {
   const [isNegotiating, setIsNegotiating] = useState(false);
   const [negotiationResult, setNegotiationResult] = useState<any>(null);
   const [showPlaceholderNegotiation, setShowPlaceholderNegotiation] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("idle");
+  const [transactionDetails, setTransactionDetails] = useState<any>(null);
 
   // Load all products on page mount
   useEffect(() => {
@@ -163,7 +166,7 @@ export default function BuyerPage() {
         clearInterval(interval);
         setIsNegotiating(false);
         const finalPrice = Math.floor((buyerBudget * 0.92 + (selectedProduct?.asking_price || 0) - 40) / 2);
-        setNegotiationResult({
+        const result = {
           status: "success",
           agreed: true,
           final_price: finalPrice,
@@ -171,7 +174,11 @@ export default function BuyerPage() {
           savings: (selectedProduct?.asking_price || 0) - finalPrice,
           reasoning: `AI agents successfully negotiated from $${selectedProduct?.asking_price} to $${finalPrice}. Your AI agent saved you $${(selectedProduct?.asking_price || 0) - finalPrice} through strategic negotiation!`,
           messages: messages
-        });
+        };
+        setNegotiationResult(result);
+
+        // Automatically trigger payment after successful negotiation
+        setTimeout(() => processAutonomousPayment(finalPrice), 2000);
       }
     }, 2000); // Increased to 2 seconds for better readability
   };
@@ -257,7 +264,7 @@ export default function BuyerPage() {
 
       // Process final result
       if (finalResult) {
-        setNegotiationResult({
+        const result = {
           status: finalResult.status,
           agreed: finalResult.status === "success",
           final_price: finalResult.negotiated_price,
@@ -269,7 +276,13 @@ export default function BuyerPage() {
               : "Could not reach an agreement. The seller was not willing to negotiate within your budget.",
           messages: streamedMessages,
           seller_notes: `Original: $${finalResult.original_price} | Negotiated: $${finalResult.negotiated_price}`,
-        });
+        };
+        setNegotiationResult(result);
+
+        // Automatically trigger payment if deal was successful
+        if (finalResult.status === "success") {
+          setTimeout(() => processAutonomousPayment(result.final_price), 2000);
+        }
       }
     } catch (error) {
       console.error("Error during negotiation:", error);
@@ -281,6 +294,39 @@ export default function BuyerPage() {
     } finally {
       setIsNegotiating(false);
     }
+  };
+
+  const processAutonomousPayment = async (finalPrice: number) => {
+    if (!selectedProduct) return;
+
+    const platformFee = finalPrice * 0.05;
+    const buyerTotal = finalPrice + platformFee;
+    const sellerReceives = finalPrice - platformFee;
+
+    // Step 1: Agent reviews the deal
+    setPaymentStatus("reviewing");
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Step 2: Agent processes Visa payment
+    setPaymentStatus("processing");
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Step 3: Payment confirmed
+    setPaymentStatus("confirmed");
+    setTransactionDetails({
+      buyerDebit: buyerTotal,
+      sellerCredit: sellerReceives,
+      platformFee: platformFee,
+      finalPrice: finalPrice,
+    });
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Step 4: Auto-generate contract
+    setPaymentStatus("complete");
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Automatically download contract
+    await generateContract();
   };
 
   const generateContract = async () => {
@@ -359,6 +405,8 @@ export default function BuyerPage() {
     setSidebarView("product");
     setNegotiationResult(null);
     setShowPlaceholderNegotiation(false);
+    setPaymentStatus("idle");
+    setTransactionDetails(null);
   };
 
   const handleBrowseReset = async () => {
@@ -928,24 +976,133 @@ export default function BuyerPage() {
             {negotiationResult && (
               <div className="flex-shrink-0 p-6 bg-white border-t border-gray-200 shadow-lg">
                 {negotiationResult.agreed ? (
-                  <div className="space-y-3">
-                    <button
-                      onClick={generateContract}
-                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 px-6 rounded-xl font-bold hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      Download PDF Contract
-                    </button>
-                    <div className="flex gap-3">
+                  <div className="space-y-4">
+                    {/* Autonomous Payment Processing UI */}
+                    {paymentStatus === "reviewing" && (
+                      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-xl p-5">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center animate-pulse">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-bold text-blue-900 mb-2">🤖 AI Agent Reviewing Deal</h4>
+                            <p className="text-sm text-blue-800">
+                              Your AI agent is analyzing the negotiated price of ${negotiationResult.final_price}.
+                              Verifying this represents fair market value and proceeding with payment...
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {paymentStatus === "processing" && (
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-xl p-5">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-bold text-purple-900 mb-2">💳 Processing Visa Payment</h4>
+                            <p className="text-sm text-purple-800">
+                              Your AI agent is processing payment via Visa on your behalf.
+                              Securing transaction for ${negotiationResult.final_price}...
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {paymentStatus === "confirmed" && transactionDetails && (
+                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-5">
+                        <div className="flex items-start gap-3 mb-4">
+                          <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-bold text-green-900 mb-2">✅ Payment Confirmed!</h4>
+                            <p className="text-sm text-green-800 mb-3">
+                              Transaction completed successfully via Visa
+                            </p>
+                          </div>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 space-y-2 text-sm">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">Product Price:</span>
+                            <span className="font-semibold text-gray-900">${transactionDetails.finalPrice.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">Platform Fee (5%):</span>
+                            <span className="font-semibold text-gray-900">${transactionDetails.platformFee.toFixed(2)}</span>
+                          </div>
+                          <div className="border-t border-gray-200 pt-2"></div>
+                          <div className="flex justify-between items-center text-red-600">
+                            <span className="font-semibold">❌ Debited from Buyer:</span>
+                            <span className="font-bold text-lg">-${transactionDetails.buyerDebit.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-green-600">
+                            <span className="font-semibold">✅ Credited to Seller:</span>
+                            <span className="font-bold text-lg">+${transactionDetails.sellerCredit.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-green-700 mt-3 text-center">
+                          Generating contract...
+                        </p>
+                      </div>
+                    )}
+
+                    {paymentStatus === "complete" && (
+                      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-xl p-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-bold text-blue-900">📄 Contract Downloaded!</h4>
+                            <p className="text-sm text-blue-800">
+                              Your contract PDF has been generated and downloaded.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {paymentStatus === "idle" && (
+                      <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-xl p-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center animate-pulse">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-bold text-yellow-900">⏳ Preparing Payment</h4>
+                            <p className="text-sm text-yellow-800">
+                              Your AI agent will automatically process payment shortly...
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex gap-3 pt-2">
                       <button
                         onClick={() => {
                           setSidebarView("product");
                           setNegotiationResult(null);
                           setShowPlaceholderNegotiation(false);
+                          setPaymentStatus("idle");
+                          setTransactionDetails(null);
                         }}
                         className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-semibold hover:bg-gray-200 transition-all"
+                        disabled={paymentStatus !== "idle" && paymentStatus !== "complete"}
                       >
                         Back to Product
                       </button>
