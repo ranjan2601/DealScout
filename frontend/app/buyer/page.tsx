@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import SearchBar from "@/components/SearchBar";
 import AnimatedTypingBubble from "@/components/AnimatedTypingBubble";
+import ContractView from "@/components/ContractView";
 
 interface Product {
   _id?: string;
@@ -36,6 +37,8 @@ export default function BuyerPage() {
   const [isNegotiating, setIsNegotiating] = useState(false);
   const [negotiationResult, setNegotiationResult] = useState<any>(null);
   const [showPlaceholderNegotiation, setShowPlaceholderNegotiation] = useState(false);
+  const [contract, setContract] = useState<any>(null);
+  const [showContract, setShowContract] = useState(false);
 
   // Load all products on page mount
   useEffect(() => {
@@ -283,11 +286,57 @@ export default function BuyerPage() {
     }
   };
 
+  const generateContract = async () => {
+    if (!negotiationResult || !selectedProduct || negotiationResult.status !== "success") {
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:8000/api/contract/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          negotiation_id: negotiationResult.negotiation_id || "neg_placeholder",
+          buyer_id: "buyer_demo_001",
+          seller_id: selectedProduct.seller_id,
+          listing_id: selectedProduct.item_id,
+          result: {
+            status: "success",
+            final_price: negotiationResult.final_price,
+            buyer_savings: negotiationResult.savings || 0,
+            seller_gain: 0,
+            turns: negotiationResult.messages?.length || 0,
+            history: negotiationResult.messages || []
+          },
+          product: {
+            title: selectedProduct.product_detail,
+            condition: selectedProduct.condition,
+            asking_price: selectedProduct.asking_price,
+            location: selectedProduct.location,
+            extras: []
+          }
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setContract(data.contract);
+        setShowContract(true);
+      }
+    } catch (error) {
+      console.error("Error generating contract:", error);
+    }
+  };
+
   const closeSidebar = () => {
     setSelectedProduct(null);
     setSidebarView("product");
     setNegotiationResult(null);
     setShowPlaceholderNegotiation(false);
+    setContract(null);
+    setShowContract(false);
   };
 
   const handleBrowseReset = async () => {
@@ -856,29 +905,84 @@ export default function BuyerPage() {
 
             {negotiationResult && (
               <div className="flex-shrink-0 p-6 bg-white border-t border-gray-200 shadow-lg">
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setSidebarView("product");
-                      setNegotiationResult(null);
-                      setShowPlaceholderNegotiation(false);
-                    }}
-                    className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-semibold hover:bg-gray-200 transition-all"
-                  >
-                    Back to Product
-                  </button>
-                  <button
-                    onClick={closeSidebar}
-                    className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-cyan-700 transition-colors shadow-md hover:shadow-lg"
-                  >
-                    Close
-                  </button>
-                </div>
+                {negotiationResult.agreed ? (
+                  <div className="space-y-3">
+                    <button
+                      onClick={generateContract}
+                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 px-6 rounded-xl font-bold hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Generate Contract
+                    </button>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          setSidebarView("product");
+                          setNegotiationResult(null);
+                          setShowPlaceholderNegotiation(false);
+                        }}
+                        className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-semibold hover:bg-gray-200 transition-all"
+                      >
+                        Back to Product
+                      </button>
+                      <button
+                        onClick={closeSidebar}
+                        className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-cyan-700 transition-colors shadow-md hover:shadow-lg"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setSidebarView("product");
+                        setNegotiationResult(null);
+                        setShowPlaceholderNegotiation(false);
+                      }}
+                      className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-semibold hover:bg-gray-200 transition-all"
+                    >
+                      Back to Product
+                    </button>
+                    <button
+                      onClick={closeSidebar}
+                      className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-cyan-700 transition-colors shadow-md hover:shadow-lg"
+                    >
+                      Close
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </>
         )}
       </div>
+
+      {/* Contract Modal */}
+      {showContract && contract && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity duration-300"
+            onClick={() => setShowContract(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <div className="pointer-events-auto w-full max-w-4xl max-h-[90vh] overflow-hidden">
+              <ContractView
+                contract={contract}
+                onClose={() => setShowContract(false)}
+                onAcceptContract={() => {
+                  // TODO: Implement payment flow
+                  alert("Proceeding to payment with Visa...\n\nIn a real implementation, this would redirect to Visa payment gateway.");
+                  setShowContract(false);
+                }}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
