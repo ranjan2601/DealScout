@@ -5,13 +5,15 @@ Integrates with Next.js frontend and Python AI negotiation agents
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional, AsyncGenerator
 import os
 from dotenv import load_dotenv
 from buyer_agent import make_offer
 from seller_agent import respond_to_offer
+from contract_generator import generate_contract, format_contract_for_display, generate_visa_payment_request
+from pdf_contract_generator import generate_contract_pdf, get_contract_filename
 from pymongo import MongoClient
 from bson import ObjectId
 import json
@@ -729,6 +731,55 @@ async def parse_agent_query(request: AgentQueryRequest):
         filters.selectedBrands = found_brands
     
     return filters
+
+
+@app.post("/api/contract/create")
+async def create_contract(request: ContractRequest):
+    """
+    Generate a professional PDF contract from a successful negotiation
+
+    Creates a legally-binding contract with payment terms, delivery terms,
+    legal clauses, and signature placeholders. Returns PDF for download.
+    """
+    try:
+        # Validate negotiation was successful
+        if request.result.get("status") != "success":
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot create contract for unsuccessful negotiation"
+            )
+
+        # Generate contract data
+        contract_data = {
+            "negotiation_id": request.negotiation_id,
+            "buyer_id": request.buyer_id,
+            "seller_id": request.seller_id,
+            "listing_id": request.listing_id,
+            "result": request.result,
+            "product": request.product
+        }
+
+        # Generate contract object with all terms
+        contract = generate_contract(contract_data)
+
+        # Generate PDF
+        pdf_bytes = generate_contract_pdf(contract)
+        filename = get_contract_filename(contract)
+
+        # Return PDF file for download
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Type": "application/pdf"
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
