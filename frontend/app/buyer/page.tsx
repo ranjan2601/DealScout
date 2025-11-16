@@ -183,7 +183,7 @@ export default function BuyerPage() {
         setNegotiationResult(result);
 
         // Automatically trigger payment after successful negotiation
-        setTimeout(() => processAutonomousPayment(finalPrice), 2000);
+        setTimeout(() => processAutonomousPayment(finalPrice, result), 2000);
       }
     }, 2000); // Increased to 2 seconds for better readability
   };
@@ -286,7 +286,7 @@ export default function BuyerPage() {
 
         // Automatically trigger payment if deal was successful
         if (finalResult.status === "success") {
-          setTimeout(() => processAutonomousPayment(result.final_price), 2000);
+          setTimeout(() => processAutonomousPayment(result.final_price, result), 2000);
         }
       }
     } catch (error) {
@@ -301,7 +301,7 @@ export default function BuyerPage() {
     }
   };
 
-  const processAutonomousPayment = async (finalPrice: number) => {
+  const processAutonomousPayment = async (finalPrice: number, negotiationData: any) => {
     if (!selectedProduct) return;
 
     const platformFee = finalPrice * 0.05;
@@ -349,7 +349,12 @@ export default function BuyerPage() {
     await new Promise(resolve => setTimeout(resolve, 500));
 
     // Automatically download contract
-    await generateContract();
+    await generateContract(negotiationData, {
+      buyerDebit: buyerTotal,
+      sellerCredit: sellerReceives,
+      platformFee: platformFee,
+      finalPrice: finalPrice,
+    });
   };
 
   const formatCardNumber = (value: string) => {
@@ -395,17 +400,23 @@ export default function BuyerPage() {
     await generateContract();
   };
 
-  const generateContract = async () => {
-    console.log("🔵 generateContract called");
-    console.log("🔵 negotiationResult:", negotiationResult);
-    console.log("🔵 selectedProduct:", selectedProduct);
-    console.log("🔵 transactionDetails:", transactionDetails);
+  const generateContract = async (negotiationData?: any, transactionData?: any) => {
+    // Use parameters if provided, otherwise fall back to state
+    const negResult = negotiationData || negotiationResult;
+    const txDetails = transactionData || transactionDetails;
 
-    if (!negotiationResult || !selectedProduct || negotiationResult.status !== "success") {
+    console.log("🔵 generateContract called");
+    console.log("🔵 negotiationData:", negotiationData);
+    console.log("🔵 transactionData:", transactionData);
+    console.log("🔵 negResult:", negResult);
+    console.log("🔵 selectedProduct:", selectedProduct);
+    console.log("🔵 txDetails:", txDetails);
+
+    if (!negResult || !selectedProduct || negResult.status !== "success") {
       console.log("❌ Validation failed - early return");
-      console.log("negotiationResult exists:", !!negotiationResult);
+      console.log("negResult exists:", !!negResult);
       console.log("selectedProduct exists:", !!selectedProduct);
-      console.log("negotiationResult.status:", negotiationResult?.status);
+      console.log("negResult.status:", negResult?.status);
       return;
     }
 
@@ -417,17 +428,17 @@ export default function BuyerPage() {
       const cardLast4 = cardNumber.replace(/\s/g, '').slice(-4) || "9010";
 
       const requestData = {
-        negotiation_id: negotiationResult.negotiation_id || "neg_placeholder",
+        negotiation_id: negResult.negotiation_id || "neg_placeholder",
         buyer_id: "buyer_demo_001",
         seller_id: selectedProduct.seller_id,
         listing_id: selectedProduct.item_id,
         result: {
           status: "success",
-          final_price: negotiationResult.final_price,
-          buyer_savings: negotiationResult.savings || 0,
+          final_price: negResult.final_price,
+          buyer_savings: negResult.savings || 0,
           seller_gain: 0,
-          turns: negotiationResult.messages?.length || 0,
-          history: negotiationResult.messages || []
+          turns: negResult.messages?.length || 0,
+          history: negResult.messages || []
         },
         product: {
           title: selectedProduct.product_detail,
@@ -442,8 +453,8 @@ export default function BuyerPage() {
           card_last_4: cardLast4,
           cardholder_name: cardName || "CARDHOLDER",
           transaction_timestamp: new Date().toISOString(),
-          amount_paid: transactionDetails?.buyerDebit || negotiationResult.final_price,
-          seller_receives: transactionDetails?.sellerCredit || negotiationResult.final_price * 0.95
+          amount_paid: txDetails?.buyerDebit || negResult.final_price,
+          seller_receives: txDetails?.sellerCredit || negResult.final_price * 0.95
         }
       };
 
