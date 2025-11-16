@@ -74,12 +74,13 @@ class Filters(BaseModel):
 
 
 class ContractRequest(BaseModel):
-    negotiation_id: Optional[str] = None
+    negotiation_id: str
     buyer_id: str
     seller_id: str
     listing_id: str
     result: Dict[str, Any]
     product: Dict[str, Any]
+    payment_details: Optional[Dict[str, Any]] = None
 
 
 # Mock listing database (in production, this would be a real database)
@@ -770,6 +771,10 @@ async def create_contract(request: ContractRequest):
 
         # Generate contract object with all terms
         contract = generate_contract(contract_data)
+
+        # Add payment details if provided
+        if request.payment_details:
+            contract['payment_details'] = request.payment_details
 
         # Generate PDF
         pdf_bytes = generate_contract_pdf(contract)

@@ -312,7 +312,7 @@ export default function BuyerPage() {
     setPaymentStatus("reviewing");
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Step 2: Open Visa payment modal
+    // Step 2: Open Visa payment modal with AI agent auto-filling details
     setPaymentStatus("payment_modal");
     setShowPaymentModal(true);
     setTransactionDetails({
@@ -321,6 +321,20 @@ export default function BuyerPage() {
       platformFee: platformFee,
       finalPrice: finalPrice,
     });
+
+    // AI Agent auto-fills card details
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setCardNumber("4532 1234 5678 9010");
+    await new Promise(resolve => setTimeout(resolve, 300));
+    setCardName("DEALSCOUT BUYER");
+    await new Promise(resolve => setTimeout(resolve, 300));
+    setCardExpiry("12 / 28");
+    await new Promise(resolve => setTimeout(resolve, 300));
+    setCardCVV("123");
+
+    // AI Agent automatically submits payment after 2 seconds
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await handlePaymentSubmit(new Event('submit') as any);
   };
 
   const formatCardNumber = (value: string) => {
@@ -372,6 +386,12 @@ export default function BuyerPage() {
     }
 
     try {
+      // Generate transaction ID
+      const transactionId = `VIS-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+      // Get card last 4 digits (or use placeholder if not available)
+      const cardLast4 = cardNumber.replace(/\s/g, '').slice(-4) || "9010";
+
       const response = await fetch("http://localhost:8000/api/contract/create", {
         method: "POST",
         headers: {
@@ -396,6 +416,15 @@ export default function BuyerPage() {
             asking_price: selectedProduct.asking_price,
             location: selectedProduct.location,
             extras: []
+          },
+          payment_details: {
+            transaction_id: transactionId,
+            payment_method: "Visa",
+            card_last_4: cardLast4,
+            cardholder_name: cardName || "CARDHOLDER",
+            transaction_timestamp: new Date().toISOString(),
+            amount_paid: transactionDetails?.buyerDebit || negotiationResult.final_price,
+            seller_receives: transactionDetails?.sellerCredit || negotiationResult.final_price * 0.95
           }
         }),
       });
@@ -1132,16 +1161,20 @@ export default function BuyerPage() {
             <div className="bg-gradient-to-r from-[#1A1F71] to-[#00579F] p-6 rounded-t-2xl">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="bg-white rounded-lg p-2">
-                    <svg className="w-8 h-8" viewBox="0 0 48 32" fill="none">
-                      <rect width="48" height="32" rx="4" fill="#1A1F71"/>
-                      <path d="M18.5 16L21.5 11H23.5L20.5 16L23.5 21H21.5L18.5 16Z" fill="#F7B600"/>
-                      <path d="M24.5 11H26.5L29.5 16L26.5 21H24.5L27.5 16L24.5 11Z" fill="#F7B600"/>
+                  <div className="bg-white rounded-xl p-3 shadow-lg">
+                    <svg className="w-12 h-8" viewBox="0 0 141 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M58.8 12.4L50.6 35.6H44.8L40.8 17.2C40.5 16 40.3 15.4 39.7 15C38.7 14.4 37.1 13.8 35.7 13.4L35.9 12.4H46.5C47.7 12.4 48.7 13.2 49 14.6L51.2 26.8L57.1 12.4H58.8ZM84.7 29.2C84.7 23.4 76.5 23 76.6 20.4C76.6 19.6 77.4 18.8 79.1 18.6C80 18.5 82.6 18.4 85.5 19.8L86.6 14.2C85.2 13.7 83.4 13.2 81.2 13.2C75.7 13.2 71.7 16.1 71.7 20.2C71.6 23.2 74.4 24.9 76.5 25.9C78.7 26.9 79.4 27.5 79.4 28.4C79.4 29.7 77.8 30.3 76.3 30.3C73.8 30.3 72.4 29.9 70.4 29L69.2 34.7C71.2 35.6 74.9 36.4 78.7 36.4C84.6 36.4 88.5 33.5 84.7 29.2ZM105.5 35.6H110.7L106.1 12.4H101.3C100.2 12.4 99.3 13 98.9 14L90.2 35.6H96.1L97.3 32.4H104.5L105.5 35.6ZM98.9 27.8L101.5 20.3L103.1 27.8H98.9ZM72.7 12.4L68.1 35.6H62.5L67.1 12.4H72.7Z" fill="#1434CB"/>
+                      <path d="M58.8 12.4L50.6 35.6H44.8L40.8 17.2C40.5 16 40.3 15.4 39.7 15C38.7 14.4 37.1 13.8 35.7 13.4L35.9 12.4H46.5C47.7 12.4 48.7 13.2 49 14.6L51.2 26.8L57.1 12.4H58.8Z" fill="#1434CB"/>
                     </svg>
                   </div>
                   <div>
                     <h3 className="text-white font-bold text-xl">Visa Checkout</h3>
-                    <p className="text-blue-200 text-sm">Secure Payment Gateway</p>
+                    <p className="text-blue-200 text-sm flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                      </svg>
+                      AI-Powered Payment
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1162,6 +1195,19 @@ export default function BuyerPage() {
             <form onSubmit={handlePaymentSubmit} className="p-6 space-y-5">
               {paymentStatus === "payment_modal" && (
                 <>
+                  {/* AI Agent Notice */}
+                  <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 flex items-start gap-3">
+                    <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-blue-900">🤖 AI Agent Auto-Filling Payment</p>
+                      <p className="text-xs text-blue-700 mt-1">Your AI agent is securely processing this transaction on your behalf...</p>
+                    </div>
+                  </div>
+
                   {/* Card Number */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1175,7 +1221,8 @@ export default function BuyerPage() {
                         placeholder="4532 1234 5678 9010"
                         maxLength={19}
                         required
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-mono text-lg"
+                        readOnly
+                        className="w-full px-4 py-3 border-2 border-blue-300 bg-blue-50 rounded-lg outline-none transition-all font-mono text-lg text-gray-900 cursor-not-allowed"
                       />
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
                         <svg className="w-10 h-6" viewBox="0 0 48 32" fill="none">
@@ -1198,7 +1245,8 @@ export default function BuyerPage() {
                       onChange={(e) => setCardName(e.target.value.toUpperCase())}
                       placeholder="JOHN DOE"
                       required
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all uppercase"
+                      readOnly
+                      className="w-full px-4 py-3 border-2 border-blue-300 bg-blue-50 rounded-lg outline-none transition-all uppercase text-gray-900 cursor-not-allowed"
                     />
                   </div>
 
@@ -1215,7 +1263,8 @@ export default function BuyerPage() {
                         placeholder="MM / YY"
                         maxLength={7}
                         required
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-mono"
+                        readOnly
+                        className="w-full px-4 py-3 border-2 border-blue-300 bg-blue-50 rounded-lg outline-none transition-all font-mono text-gray-900 cursor-not-allowed"
                       />
                     </div>
                     <div>
@@ -1229,7 +1278,8 @@ export default function BuyerPage() {
                         placeholder="123"
                         maxLength={3}
                         required
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-mono"
+                        readOnly
+                        className="w-full px-4 py-3 border-2 border-blue-300 bg-blue-50 rounded-lg outline-none transition-all font-mono text-gray-900 cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -1245,27 +1295,13 @@ export default function BuyerPage() {
                     </div>
                   </div>
 
-                  {/* Buttons */}
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowPaymentModal(false);
-                        setPaymentStatus("idle");
-                      }}
-                      className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-semibold hover:bg-gray-200 transition-all"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 bg-gradient-to-r from-[#1A1F71] to-[#00579F] text-white py-3 px-4 rounded-lg font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                      Pay ${transactionDetails?.buyerDebit.toFixed(2)}
-                    </button>
+                  {/* AI Agent Status */}
+                  <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white py-4 px-6 rounded-xl text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <p className="font-bold">AI Agent Processing Payment...</p>
+                    </div>
+                    <p className="text-sm text-blue-100">Payment will be submitted automatically</p>
                   </div>
                 </>
               )}
@@ -1277,8 +1313,8 @@ export default function BuyerPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                   </div>
-                  <h4 className="text-xl font-bold text-gray-900 mb-2">Processing Payment</h4>
-                  <p className="text-gray-600">Please wait while we process your transaction...</p>
+                  <h4 className="text-xl font-bold text-gray-900 mb-2">🤖 AI Agent Processing Payment</h4>
+                  <p className="text-gray-600">Your AI agent is completing the Visa transaction...</p>
                   <div className="mt-4 flex items-center justify-center gap-1">
                     <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
                     <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
@@ -1294,8 +1330,8 @@ export default function BuyerPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <h4 className="text-xl font-bold text-green-900 mb-2">Payment Successful!</h4>
-                  <p className="text-gray-600 mb-4">Your transaction has been completed</p>
+                  <h4 className="text-xl font-bold text-green-900 mb-2">✅ AI Agent Payment Complete!</h4>
+                  <p className="text-gray-600 mb-4">Your AI agent successfully processed the Visa payment</p>
                   {transactionDetails && (
                     <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
                       <div className="flex justify-between">
