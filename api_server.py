@@ -12,6 +12,7 @@ import os
 from dotenv import load_dotenv
 from buyer_agent import make_offer
 from seller_agent import respond_to_offer
+from contract_generator import generate_contract, format_contract_for_display, generate_visa_payment_request
 from pymongo import MongoClient
 from bson import ObjectId
 import json
@@ -69,6 +70,15 @@ class Filters(BaseModel):
     maxDistance: Optional[float] = None
     selectedConditions: Optional[List[str]] = None
     selectedBrands: Optional[List[str]] = None
+
+
+class ContractRequest(BaseModel):
+    negotiation_id: Optional[str] = None
+    buyer_id: str
+    seller_id: str
+    listing_id: str
+    result: Dict[str, Any]
+    product: Dict[str, Any]
 
 
 # Mock listing database (in production, this would be a real database)
@@ -729,6 +739,51 @@ async def parse_agent_query(request: AgentQueryRequest):
         filters.selectedBrands = found_brands
     
     return filters
+
+
+@app.post("/api/contract/create")
+async def create_contract(request: ContractRequest):
+    """
+    Generate a contract from a successful negotiation
+
+    Creates a formal contract with payment terms, delivery terms,
+    and Visa payment integration for the hackathon demo.
+    """
+    try:
+        # Validate negotiation was successful
+        if request.result.get("status") != "success":
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot create contract for unsuccessful negotiation"
+            )
+
+        # Generate contract
+        contract_data = {
+            "negotiation_id": request.negotiation_id,
+            "buyer_id": request.buyer_id,
+            "seller_id": request.seller_id,
+            "listing_id": request.listing_id,
+            "result": request.result,
+            "product": request.product
+        }
+
+        contract = generate_contract(contract_data)
+        formatted_contract = format_contract_for_display(contract)
+        payment_request = generate_visa_payment_request(contract)
+
+        return {
+            "status": "success",
+            "contract": contract,
+            "contract_id": contract['contract_id'],
+            "formatted_contract": formatted_contract,
+            "payment_request": payment_request,
+            "message": "Contract generated successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
