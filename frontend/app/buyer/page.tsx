@@ -1054,6 +1054,8 @@ export default function BuyerPage() {
                   </div>
                 </>
               )}
+            </div>
+          )}
             </>
           )}
         </div>
