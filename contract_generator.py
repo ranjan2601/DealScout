@@ -202,7 +202,7 @@ Negotiation completed successfully in {turns} turns.
 
 Starting Position:
 - Seller's asking price: ${asking_price:.2f}
-- Buyer's initial offer: ${buyer_first_offer:.2f if buyer_first_offer else 0}
+- Buyer's initial offer: ${(buyer_first_offer if buyer_first_offer is not None else 0):.2f}
 
 Final Agreement:
 - Agreed price: ${final_price:.2f}
