@@ -64,7 +64,7 @@ export default function Header({ showBackButton = false, onBrowseClick }: Header
                   />
                 </svg>
               </div>
-              <span className="font-semibold text-lg">DealScout</span>
+              <span className="font-semibold text-lg text-gray-900">DealScout</span>
             </Link>
           </div>
 
