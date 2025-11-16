@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from negotiate import run_negotiation
 from buyer_agent import make_offer
 from seller_agent import respond_to_offer
+from contract_generator import generate_contract, format_contract_for_display, validate_contract_signatures, generate_visa_payment_request
 
 load_dotenv()
 
@@ -404,6 +405,191 @@ def get_negotiation_endpoint(negotiation_id: str):
         return jsonify({
             "status": "success",
             "message": f"Negotiation {negotiation_id} details"
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
+# ============================================================================
+# ENDPOINT 4: GENERATE CONTRACT
+# ============================================================================
+
+@app.route("/api/contract/create", methods=["POST"])
+def create_contract_endpoint():
+    """
+    Generate a contract from a successful negotiation
+
+    Request body:
+    {
+        "negotiation_id": "neg_abc123",
+        "buyer_id": "user_123",
+        "seller_id": "seller_456",
+        "listing_id": "bike_001",
+        "result": {
+            "status": "success",
+            "final_price": 425.00,
+            "buyer_savings": 25.00,
+            "seller_gain": 65.00,
+            "turns": 4,
+            "history": [...]
+        },
+        "product": {
+            "title": "Trek Mountain Bike",
+            "condition": "like-new",
+            "asking_price": 450,
+            "location": "Brooklyn, NY",
+            "extras": ["helmet", "lock"]
+        }
+    }
+
+    Response:
+    {
+        "status": "success",
+        "contract": {...},
+        "contract_id": "contract_abc123",
+        "formatted_contract": "...",
+        "payment_request": {...}
+    }
+    """
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        required_fields = ["buyer_id", "seller_id", "result", "product"]
+        if not all(field in data for field in required_fields):
+            return jsonify({
+                "status": "error",
+                "message": f"Missing required fields: {required_fields}"
+            }), 400
+
+        # Validate negotiation was successful
+        if data.get("result", {}).get("status") != "success":
+            return jsonify({
+                "status": "error",
+                "message": "Cannot create contract for unsuccessful negotiation"
+            }), 400
+
+        # Generate contract
+        contract = generate_contract(data)
+
+        # Format for display
+        formatted_contract = format_contract_for_display(contract)
+
+        # Generate Visa payment request (for hackathon integration)
+        payment_request = generate_visa_payment_request(contract)
+
+        # TODO: Save contract to database
+        # db.save_contract(contract['contract_id'], contract)
+
+        return jsonify({
+            "status": "success",
+            "contract": contract,
+            "contract_id": contract['contract_id'],
+            "formatted_contract": formatted_contract,
+            "payment_request": payment_request,
+            "message": "Contract generated successfully"
+        }), 200
+
+    except ValueError as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 400
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
+# ============================================================================
+# ENDPOINT 5: GET CONTRACT
+# ============================================================================
+
+@app.route("/api/contract/<contract_id>", methods=["GET"])
+def get_contract_endpoint(contract_id: str):
+    """
+    Get contract details by ID
+
+    Response:
+    {
+        "status": "success",
+        "contract": {...},
+        "formatted_contract": "..."
+    }
+    """
+    try:
+        # TODO: Fetch from database
+        # contract = db.get_contract(contract_id)
+
+        return jsonify({
+            "status": "success",
+            "message": f"Contract {contract_id} details",
+            "contract_id": contract_id
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
+# ============================================================================
+# ENDPOINT 6: SIGN CONTRACT
+# ============================================================================
+
+@app.route("/api/contract/<contract_id>/sign", methods=["POST"])
+def sign_contract_endpoint(contract_id: str):
+    """
+    Sign a contract (buyer or seller)
+
+    Request body:
+    {
+        "party": "buyer" or "seller",
+        "user_id": "user_123",
+        "signature": "digital_signature_hash"
+    }
+
+    Response:
+    {
+        "status": "success",
+        "contract_id": "contract_abc123",
+        "signed": true,
+        "validation": {...}
+    }
+    """
+    try:
+        data = request.get_json()
+
+        party = data.get("party")  # "buyer" or "seller"
+        user_id = data.get("user_id")
+
+        if party not in ["buyer", "seller"]:
+            return jsonify({
+                "status": "error",
+                "message": "Party must be 'buyer' or 'seller'"
+            }), 400
+
+        # TODO: Update contract in database
+        # contract = db.get_contract(contract_id)
+        # contract[party]["signed"] = True
+        # contract[party]["signed_at"] = datetime.now().isoformat()
+        # db.update_contract(contract_id, contract)
+        # validation = validate_contract_signatures(contract)
+
+        return jsonify({
+            "status": "success",
+            "contract_id": contract_id,
+            "party": party,
+            "signed": True,
+            "message": f"{party.title()} signature recorded"
         }), 200
 
     except Exception as e:
