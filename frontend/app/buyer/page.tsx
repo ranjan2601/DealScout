@@ -334,7 +334,22 @@ export default function BuyerPage() {
 
     // AI Agent automatically submits payment after 2 seconds
     await new Promise(resolve => setTimeout(resolve, 2000));
-    await handlePaymentSubmit(new Event('submit') as any);
+
+    // Process payment directly
+    setPaymentStatus("processing");
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Payment confirmed
+    setPaymentStatus("confirmed");
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Close modal and auto-generate contract
+    setShowPaymentModal(false);
+    setPaymentStatus("complete");
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Automatically download contract
+    await generateContract();
   };
 
   const formatCardNumber = (value: string) => {
