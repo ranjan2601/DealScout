@@ -23,7 +23,7 @@ interface Product {
 }
 
 type SidebarView = "product" | "negotiation";
-type PaymentStatus = "idle" | "reviewing" | "processing" | "confirmed" | "complete";
+type PaymentStatus = "idle" | "reviewing" | "payment_modal" | "processing" | "confirmed" | "complete";
 
 export default function BuyerPage() {
   const [isSearching, setIsSearching] = useState(false);
@@ -39,6 +39,11 @@ export default function BuyerPage() {
   const [showPlaceholderNegotiation, setShowPlaceholderNegotiation] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("idle");
   const [transactionDetails, setTransactionDetails] = useState<any>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCVV, setCardCVV] = useState("");
+  const [cardName, setCardName] = useState("");
 
   // Load all products on page mount
   useEffect(() => {
@@ -307,23 +312,55 @@ export default function BuyerPage() {
     setPaymentStatus("reviewing");
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Step 2: Agent processes Visa payment
-    setPaymentStatus("processing");
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Step 3: Payment confirmed
-    setPaymentStatus("confirmed");
+    // Step 2: Open Visa payment modal
+    setPaymentStatus("payment_modal");
+    setShowPaymentModal(true);
     setTransactionDetails({
       buyerDebit: buyerTotal,
       sellerCredit: sellerReceives,
       platformFee: platformFee,
       finalPrice: finalPrice,
     });
+  };
+
+  const formatCardNumber = (value: string) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    const matches = v.match(/\d{4,16}/g);
+    const match = (matches && matches[0]) || '';
+    const parts = [];
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4));
+    }
+    if (parts.length) {
+      return parts.join(' ');
+    } else {
+      return value;
+    }
+  };
+
+  const formatExpiry = (value: string) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    if (v.length >= 2) {
+      return v.slice(0, 2) + (v.length > 2 ? ' / ' + v.slice(2, 4) : '');
+    }
+    return v;
+  };
+
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Step 3: Process Visa payment
+    setPaymentStatus("processing");
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Step 4: Auto-generate contract
+    // Step 4: Payment confirmed
+    setPaymentStatus("confirmed");
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Step 5: Close modal and auto-generate contract
+    setShowPaymentModal(false);
     setPaymentStatus("complete");
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Automatically download contract
     await generateContract();
@@ -377,26 +414,27 @@ export default function BuyerPage() {
           }
         }
 
-        // Create download link and trigger download
+        // Create download link and trigger download automatically
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
+        a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
 
-        // Cleanup
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        // Cleanup after a short delay
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        }, 100);
 
-        // Show success message
-        alert(`✅ Contract generated successfully!\n\nYour contract has been downloaded as:\n${filename}\n\nPlease review, sign, and return to complete the transaction.`);
+        console.log(`✅ Contract downloaded: ${filename}`);
       } else {
-        alert("❌ Failed to generate contract. Please try again.");
+        console.error("❌ Failed to generate contract");
       }
     } catch (error) {
       console.error("Error generating contract:", error);
-      alert("❌ Error generating contract. Please try again.");
     }
   };
 
@@ -407,6 +445,11 @@ export default function BuyerPage() {
     setShowPlaceholderNegotiation(false);
     setPaymentStatus("idle");
     setTransactionDetails(null);
+    setShowPaymentModal(false);
+    setCardNumber("");
+    setCardExpiry("");
+    setCardCVV("");
+    setCardName("");
   };
 
   const handleBrowseReset = async () => {
@@ -977,7 +1020,7 @@ export default function BuyerPage() {
               <div className="flex-shrink-0 p-6 bg-white border-t border-gray-200 shadow-lg">
                 {negotiationResult.agreed ? (
                   <div className="space-y-4">
-                    {/* Autonomous Payment Processing UI */}
+                    {/* Status Messages */}
                     {paymentStatus === "reviewing" && (
                       <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-xl p-5">
                         <div className="flex items-start gap-3">
@@ -990,102 +1033,43 @@ export default function BuyerPage() {
                             <h4 className="font-bold text-blue-900 mb-2">🤖 AI Agent Reviewing Deal</h4>
                             <p className="text-sm text-blue-800">
                               Your AI agent is analyzing the negotiated price of ${negotiationResult.final_price}.
-                              Verifying this represents fair market value and proceeding with payment...
+                              Preparing Visa checkout...
                             </p>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {paymentStatus === "processing" && (
-                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-xl p-5">
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                            <svg className="w-5 h-5 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-bold text-purple-900 mb-2">💳 Processing Visa Payment</h4>
-                            <p className="text-sm text-purple-800">
-                              Your AI agent is processing payment via Visa on your behalf.
-                              Securing transaction for ${negotiationResult.final_price}...
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {paymentStatus === "confirmed" && transactionDetails && (
+                    {paymentStatus === "complete" && (
                       <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-5">
-                        <div className="flex items-start gap-3 mb-4">
+                        <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
                             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                           </div>
                           <div className="flex-1">
-                            <h4 className="font-bold text-green-900 mb-2">✅ Payment Confirmed!</h4>
-                            <p className="text-sm text-green-800 mb-3">
-                              Transaction completed successfully via Visa
-                            </p>
-                          </div>
-                        </div>
-                        <div className="bg-white rounded-lg p-4 space-y-2 text-sm">
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-600">Product Price:</span>
-                            <span className="font-semibold text-gray-900">${transactionDetails.finalPrice.toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-600">Platform Fee (5%):</span>
-                            <span className="font-semibold text-gray-900">${transactionDetails.platformFee.toFixed(2)}</span>
-                          </div>
-                          <div className="border-t border-gray-200 pt-2"></div>
-                          <div className="flex justify-between items-center text-red-600">
-                            <span className="font-semibold">❌ Debited from Buyer:</span>
-                            <span className="font-bold text-lg">-${transactionDetails.buyerDebit.toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between items-center text-green-600">
-                            <span className="font-semibold">✅ Credited to Seller:</span>
-                            <span className="font-bold text-lg">+${transactionDetails.sellerCredit.toFixed(2)}</span>
-                          </div>
-                        </div>
-                        <p className="text-xs text-green-700 mt-3 text-center">
-                          Generating contract...
-                        </p>
-                      </div>
-                    )}
-
-                    {paymentStatus === "complete" && (
-                      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-xl p-5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-bold text-blue-900">📄 Contract Downloaded!</h4>
-                            <p className="text-sm text-blue-800">
-                              Your contract PDF has been generated and downloaded.
+                            <h4 className="font-bold text-green-900">✅ Transaction Complete!</h4>
+                            <p className="text-sm text-green-800">
+                              Payment processed and contract downloaded successfully
                             </p>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {paymentStatus === "idle" && (
-                      <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-xl p-5">
+                    {(paymentStatus === "idle" || paymentStatus === "payment_modal" || paymentStatus === "processing" || paymentStatus === "confirmed") && paymentStatus !== "complete" && paymentStatus !== "reviewing" && (
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-xl p-5">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center animate-pulse">
+                          <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center animate-pulse">
                             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
                           </div>
                           <div className="flex-1">
-                            <h4 className="font-bold text-yellow-900">⏳ Preparing Payment</h4>
-                            <p className="text-sm text-yellow-800">
-                              Your AI agent will automatically process payment shortly...
+                            <h4 className="font-bold text-purple-900">💳 Payment in Progress</h4>
+                            <p className="text-sm text-purple-800">
+                              Processing your Visa payment...
                             </p>
                           </div>
                         </div>
@@ -1139,6 +1123,198 @@ export default function BuyerPage() {
           </>
         )}
       </div>
+
+      {/* Visa Payment Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-[#1A1F71] to-[#00579F] p-6 rounded-t-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white rounded-lg p-2">
+                    <svg className="w-8 h-8" viewBox="0 0 48 32" fill="none">
+                      <rect width="48" height="32" rx="4" fill="#1A1F71"/>
+                      <path d="M18.5 16L21.5 11H23.5L20.5 16L23.5 21H21.5L18.5 16Z" fill="#F7B600"/>
+                      <path d="M24.5 11H26.5L29.5 16L26.5 21H24.5L27.5 16L24.5 11Z" fill="#F7B600"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold text-xl">Visa Checkout</h3>
+                    <p className="text-blue-200 text-sm">Secure Payment Gateway</p>
+                  </div>
+                </div>
+              </div>
+              {transactionDetails && (
+                <div className="bg-white/10 backdrop-blur-md rounded-lg p-4 border border-white/20">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-blue-100 text-sm">Total Amount</span>
+                    <span className="text-white font-bold text-2xl">${transactionDetails.buyerDebit.toFixed(2)}</span>
+                  </div>
+                  <div className="text-xs text-blue-200">
+                    Product: ${transactionDetails.finalPrice.toFixed(2)} + Fee: ${transactionDetails.platformFee.toFixed(2)}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Payment Form */}
+            <form onSubmit={handlePaymentSubmit} className="p-6 space-y-5">
+              {paymentStatus === "payment_modal" && (
+                <>
+                  {/* Card Number */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Card Number
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={cardNumber}
+                        onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                        placeholder="4532 1234 5678 9010"
+                        maxLength={19}
+                        required
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-mono text-lg"
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <svg className="w-10 h-6" viewBox="0 0 48 32" fill="none">
+                          <rect width="48" height="32" rx="4" fill="#1A1F71"/>
+                          <path d="M18.5 16L21.5 11H23.5L20.5 16L23.5 21H21.5L18.5 16Z" fill="#F7B600"/>
+                          <path d="M24.5 11H26.5L29.5 16L26.5 21H24.5L27.5 16L24.5 11Z" fill="#F7B600"/>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cardholder Name */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Cardholder Name
+                    </label>
+                    <input
+                      type="text"
+                      value={cardName}
+                      onChange={(e) => setCardName(e.target.value.toUpperCase())}
+                      placeholder="JOHN DOE"
+                      required
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all uppercase"
+                    />
+                  </div>
+
+                  {/* Expiry and CVV */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Expiry Date
+                      </label>
+                      <input
+                        type="text"
+                        value={cardExpiry}
+                        onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
+                        placeholder="MM / YY"
+                        maxLength={7}
+                        required
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        CVV
+                      </label>
+                      <input
+                        type="text"
+                        value={cardCVV}
+                        onChange={(e) => setCardCVV(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                        placeholder="123"
+                        maxLength={3}
+                        required
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Security Notice */}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+                    <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-semibold text-green-900">Secure Payment</p>
+                      <p className="text-xs text-green-700">Your payment is encrypted and secure</p>
+                    </div>
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPaymentModal(false);
+                        setPaymentStatus("idle");
+                      }}
+                      className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-semibold hover:bg-gray-200 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 bg-gradient-to-r from-[#1A1F71] to-[#00579F] text-white py-3 px-4 rounded-lg font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      Pay ${transactionDetails?.buyerDebit.toFixed(2)}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {paymentStatus === "processing" && (
+                <div className="py-8 text-center">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                    <svg className="w-8 h-8 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </div>
+                  <h4 className="text-xl font-bold text-gray-900 mb-2">Processing Payment</h4>
+                  <p className="text-gray-600">Please wait while we process your transaction...</p>
+                  <div className="mt-4 flex items-center justify-center gap-1">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                  </div>
+                </div>
+              )}
+
+              {paymentStatus === "confirmed" && (
+                <div className="py-8 text-center">
+                  <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h4 className="text-xl font-bold text-green-900 mb-2">Payment Successful!</h4>
+                  <p className="text-gray-600 mb-4">Your transaction has been completed</p>
+                  {transactionDetails && (
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Amount Paid:</span>
+                        <span className="font-semibold text-green-600">-${transactionDetails.buyerDebit.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Seller Receives:</span>
+                        <span className="font-semibold text-green-600">+${transactionDetails.sellerCredit.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-500 mt-4">Generating your contract...</p>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
