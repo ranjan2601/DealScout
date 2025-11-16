@@ -372,6 +372,12 @@ export default function BuyerPage() {
     }
 
     try {
+      // Generate transaction ID
+      const transactionId = `VIS-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+      // Get card last 4 digits (or use placeholder if not available)
+      const cardLast4 = cardNumber.replace(/\s/g, '').slice(-4) || "9010";
+
       const response = await fetch("http://localhost:8000/api/contract/create", {
         method: "POST",
         headers: {
@@ -396,6 +402,15 @@ export default function BuyerPage() {
             asking_price: selectedProduct.asking_price,
             location: selectedProduct.location,
             extras: []
+          },
+          payment_details: {
+            transaction_id: transactionId,
+            payment_method: "Visa",
+            card_last_4: cardLast4,
+            cardholder_name: cardName || "CARDHOLDER",
+            transaction_timestamp: new Date().toISOString(),
+            amount_paid: transactionDetails?.buyerDebit || negotiationResult.final_price,
+            seller_receives: transactionDetails?.sellerCredit || negotiationResult.final_price * 0.95
           }
         }),
       });

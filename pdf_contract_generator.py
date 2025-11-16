@@ -181,13 +181,34 @@ def generate_contract_pdf(contract: Dict[str, Any]) -> bytes:
     story.append(price_table)
     story.append(Spacer(1, 0.1*inch))
 
-    payment_text = f"""
-    <b>Payment Method:</b> Visa via DealScout secure payment gateway<br/>
-    <b>Payment Due Date:</b> {datetime.fromisoformat(payment['due_date']).strftime('%B %d, %Y')}<br/><br/>
-    The Buyer shall pay the Total Amount Due through the DealScout platform using Visa payment processing.
-    Payment must be completed by the due date specified above. Upon successful payment verification,
-    the Seller will receive ${payment['seller_receives']:.2f} (purchase price less platform fees).
-    """
+    # Payment details with transaction information
+    payment_details = contract.get('payment_details', {})
+
+    if payment_details:
+        # Payment completed with transaction details
+        transaction_time = datetime.fromisoformat(payment_details['transaction_timestamp']).strftime('%B %d, %Y at %I:%M %p')
+        payment_text = f"""
+        <b>Payment Method:</b> Visa ending in ****{payment_details.get('card_last_4', 'XXXX')}<br/>
+        <b>Cardholder Name:</b> {payment_details.get('cardholder_name', 'N/A')}<br/>
+        <b>Transaction ID:</b> {payment_details.get('transaction_id', 'N/A')}<br/>
+        <b>Payment Date:</b> {transaction_time}<br/>
+        <b>Amount Paid by Buyer:</b> ${payment_details.get('amount_paid', payment['buyer_total']):.2f}<br/>
+        <b>Amount Credited to Seller:</b> ${payment_details.get('seller_receives', payment['seller_receives']):.2f}<br/><br/>
+        <b>PAYMENT STATUS: COMPLETED ✓</b><br/><br/>
+        Payment has been successfully processed through DealScout's secure Visa payment gateway.
+        The Buyer's payment of ${payment_details.get('amount_paid', payment['buyer_total']):.2f} has been verified and confirmed.
+        The Seller will receive ${payment_details.get('seller_receives', payment['seller_receives']):.2f} (purchase price less 5% platform service fee).
+        """
+    else:
+        # Payment pending (old format)
+        payment_text = f"""
+        <b>Payment Method:</b> Visa via DealScout secure payment gateway<br/>
+        <b>Payment Due Date:</b> {datetime.fromisoformat(payment['due_date']).strftime('%B %d, %Y')}<br/><br/>
+        The Buyer shall pay the Total Amount Due through the DealScout platform using Visa payment processing.
+        Payment must be completed by the due date specified above. Upon successful payment verification,
+        the Seller will receive ${payment['seller_receives']:.2f} (purchase price less platform fees).
+        """
+
     story.append(Paragraph(payment_text, body_style))
     story.append(Spacer(1, 0.15*inch))
 
