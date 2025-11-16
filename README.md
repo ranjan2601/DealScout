@@ -4,38 +4,66 @@ An intelligent negotiation platform that uses AI agents to autonomously negotiat
 
 ## Overview
 
-DealScout enables realistic, human-like price negotiations between buyers and sellers using autonomous AI agents powered by Claude Sonnet 4.5. The system conducts multi-turn negotiations with natural conversation, market-aware pricing strategies, and intelligent concessions.
+DealScout enables realistic, human-like price negotiations between buyers and sellers using autonomous AI agents powered by Claude Sonnet 4.5. The system conducts multi-turn negotiations with natural conversation, market-aware pricing strategies, intelligent concessions, and LLM-powered database queries.
 
 **Key Features:**
 - 🤖 Autonomous AI agents (buyer and seller) that negotiate naturally
-- 💬 Multi-turn conversational negotiation (up to 10 turns)
+- 💬 Multi-turn conversational negotiation (up to 8 turns)
 - 📊 Market-aware pricing using comparable listings
 - 💰 Real-time offer generation with confidence scores
-- 🔍 Marketplace search with filters (category, location, budget)
+- 🔍 LLM-powered smart search with natural language queries
 - 📈 Deal success tracking with savings calculation
+- 🌐 Parallel multi-product negotiations with streaming updates
+- 📱 Full-stack application with React frontend
 
 ## Project Structure
 
 ```
 HackNYU/
-├── api.py                      # Flask REST API server
-├── negotiate.py                # Negotiation orchestrator
-├── buyer_agent.py              # Autonomous buyer agent
-├── seller_agent.py             # Autonomous seller agent
-├── test_api.py                 # API endpoint tests
-├── API_DOCUMENTATION.md        # Complete API reference
-├── FRONTEND_INTEGRATION.md     # Frontend integration guide
-├── requirements.txt            # Python dependencies
-├── .env                        # Environment variables (not in repo)
-└── README.md                   # This file
+├── api_server.py                # FastAPI server with SSE streaming
+├── buyer_agent.py               # Autonomous buyer agent
+├── seller_agent.py              # Autonomous seller agent
+├── seed_db.py                   # MongoDB database seeding script
+├── requirements.txt             # Python dependencies
+├── .env                         # Environment variables (not in repo)
+├── .env.example                 # Example environment config
+├── frontend/                    # Next.js React application
+│   ├── app/
+│   │   ├── buyer/              # Buyer pages
+│   │   ├── seller/             # Seller pages
+│   │   └── page.tsx            # Landing page
+│   └── components/             # Reusable UI components
+└── README.md                    # This file
 ```
+
+## Tech Stack
+
+**Backend:**
+- Python 3.8+
+- FastAPI with async/await
+- MongoDB for data persistence
+- Claude Sonnet 4.5 via OpenRouter API
+- Server-Sent Events (SSE) for real-time streaming
+
+**Frontend:**
+- Next.js 14 (React)
+- TypeScript
+- Tailwind CSS
+- Real-time streaming event handlers
 
 ## Quick Start
 
 ### 1. Install Dependencies
 
+**Backend:**
 ```bash
 pip install -r requirements.txt
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm install
 ```
 
 ### 2. Set Up Environment
@@ -44,71 +72,86 @@ Create a `.env` file in the project root:
 
 ```
 OPENROUTER_API_KEY=your_api_key_here
+MONGODB_URI=mongodb://localhost:27017
+DATABASE_NAME=dealscout
 ```
 
-Get your API key from [OpenRouter](https://openrouter.ai/).
+Get your OpenRouter API key from [OpenRouter](https://openrouter.ai/).
 
-### 3. Start the API Server
+### 3. Start MongoDB
 
 ```bash
-python api.py
+# Create data directory
+mkdir -p /tmp/mongodb_data
+
+# Start MongoDB
+mongod --dbpath /tmp/mongodb_data
+
+# In another terminal, seed the database
+python seed_db.py
 ```
 
-The server will run on `http://localhost:5000`
-
-### 4. Test the API
-
-In another terminal:
+### 4. Start the Backend API Server
 
 ```bash
-python test_api.py
+python api_server.py
 ```
+
+The API server runs on `http://localhost:8000`
+
+### 5. Start the Frontend
+
+```bash
+cd frontend
+npm run dev
+```
+
+The frontend runs on `http://localhost:3000`
 
 ## API Endpoints
 
-### Search Listings
-- **POST** `/api/search` - Search for marketplace listings
-  - Query by category, location, max budget
-  - Returns list of available items
+### Search & Negotiate
+- **POST** `/api/buyer/search` - Search listings and run parallel AI negotiations
+  - Stream-based (Server-Sent Events)
+  - Finds matching products
+  - Negotiates with all matching sellers
+  - Returns best deal recommendation
 
-### Start Negotiation
-- **POST** `/api/negotiate` - Run AI negotiation for a listing
-  - Provide buyer ID, budget, and listing ID
-  - Returns negotiation result with final price and conversation history
+### Request Format
+```json
+{
+  "search_query": "mountain bike under 1000",
+  "max_budget": 1000,
+  "top_n": 5
+}
+```
 
-### Health Check
-- **GET** `/api/health` - Check if API is running
-
-### Get Negotiation Details
-- **GET** `/api/negotiation/<negotiation_id>` - Retrieve past negotiation
-
-See [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for complete API reference with examples.
+### Response Events
+- `status` - Progress updates (searching, negotiating, analyzing)
+- `products_found` - List of matching products
+- `negotiation_start` - Negotiation started for a product
+- `negotiation_message` - Individual conversation messages
+- `negotiation_complete` - Negotiation finished with result
+- `best_deal` - Final recommendation
+- `error` - Any errors encountered
 
 ## System Architecture
 
-### Data Flow
+### Smart Search with LLM
 
-```
-User Search
-    ↓
-/api/search endpoint
-    ↓
-Fetch listings from database
-    ↓
-Return matching listings
-    ↓
-User selects listing + enters budget
-    ↓
-/api/negotiate endpoint
-    ↓
-Fetch comparable listings & market stats
-    ↓
-Initialize negotiation state
-    ↓
-Run negotiation loop (buyer ↔ seller turns)
-    ↓
-Return final price + conversation history
-```
+The search system uses an LLM to convert natural language queries into MongoDB filters:
+- "mountain bike under 1000" → MongoDB query with regex and price constraints
+- Handles product variations and synonyms
+- Extracts price constraints automatically
+- Falls back to simple regex if parsing fails
+
+### Parallel Negotiations
+
+When searching:
+1. **Search Phase**: Use LLM-generated MongoDB queries to find matching products
+2. **Negotiation Phase**: Simultaneously negotiate with all found sellers
+3. **Analysis Phase**: Compare results and recommend best deal
+4. **Streaming**: Real-time updates to frontend via SSE
 
 ### AI Agents
 
@@ -117,207 +160,229 @@ Return final price + conversation history
 - References platform data to justify prices
 - Respects budget constraints
 - Can accept, counter, reject, or walk away
+- 30-second timeout to prevent hanging
 
 **Seller Agent** (`seller_agent.py`):
 - Responds strategically to buyer offers
 - Enforces minimum acceptable price
 - Adapts negotiation strategy by turn number
 - Uses market data to defend asking price
+- 30-second timeout to prevent hanging
 
-**Negotiation Orchestrator** (`negotiate.py`):
-- Manages turn-based negotiation loop
+**Negotiation Orchestrator** (`api_server.py`):
+- Manages turn-based negotiation loop (up to 8 turns)
 - Passes full context to each agent
 - Handles deal completion and conflicts
-- Formats and returns results
+- Formats and returns results with savings calculation
 
 ## Example Usage
 
-### Search for Listings
+### Search and Negotiate (with streaming)
 
-```bash
-curl -X POST http://localhost:5000/api/search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "category": "bikes",
-    "location": "Brooklyn, NY",
-    "max_budget": 500
-  }'
+```javascript
+// Frontend example with streaming
+const eventSource = new EventSource(
+  'http://localhost:8000/api/buyer/search',
+  {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      search_query: 'mountain bike under 1000',
+      max_budget: 1000,
+      top_n: 5
+    })
+  }
+);
+
+eventSource.addEventListener('products_found', (event) => {
+  const products = JSON.parse(event.data).data;
+  console.log('Found products:', products);
+});
+
+eventSource.addEventListener('negotiation_complete', (event) => {
+  const result = JSON.parse(event.data).result;
+  console.log('Negotiation result:', result);
+});
+
+eventSource.addEventListener('best_deal', (event) => {
+  const best = JSON.parse(event.data).data;
+  console.log('Best deal:', best);
+});
 ```
 
-### Run Negotiation
+## Database Schema
 
-```bash
-curl -X POST http://localhost:5000/api/negotiate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "buyer_id": "user_123",
-    "buyer_budget": 450,
-    "selected_listing_ids": ["bike_001"]
-  }'
+### Products (sellers collection)
+
+```json
+{
+  "seller_id": "seller_001",
+  "item_id": "bike_001",
+  "product_detail": "Trek X-Caliber 8 Mountain Bike 27.5\" 2022",
+  "description": "Well-maintained mountain bike with disc brakes and suspension",
+  "category": "Sports & Outdoors",
+  "asking_price": 850,
+  "min_selling_price": 750,
+  "condition": "good",
+  "location": "New York, NY",
+  "zip_code": "10001",
+  "extras": ["helmet", "lock"],
+  "created_at": "2025-11-16T04:11:01.027Z",
+  "updated_at": "2025-11-16T04:11:01.027Z",
+  "status": "active"
+}
 ```
 
-## Frontend Integration
+## Known Issues & Solutions
 
-DealScout provides a complete REST API for frontend integration. See [FRONTEND_INTEGRATION.md](FRONTEND_INTEGRATION.md) for:
+### DateTime JSON Serialization
+- **Issue**: MongoDB datetime objects not serializable to JSON
+- **Solution**: Convert to ISO format strings (lines 1099-1102 in api_server.py)
 
-- Step-by-step integration guide
-- JavaScript/React examples
-- HTML/CSS for UI components
-- Negotiation conversation display
-- Error handling and validation
+### Only 1 Product Negotiating
+- **Issue**: When finding multiple products, only 1 would negotiate
+- **Solution**: Completely reimplemented negotiation loop with:
+  - Explicit index-based iteration
+  - Comprehensive error handling per product
+  - Guaranteed result collection for all products
+  - Continue-on-error logic to process remaining items
+
+### API Timeouts
+- **Issue**: Indefinite hanging on API calls
+- **Solution**: Added 30-second timeout to all HTTP requests in buyer_agent.py and seller_agent.py
 
 ## Configuration
 
 ### Environment Variables
 
-- `OPENROUTER_API_KEY` (required) - API key for OpenRouter Claude access
+```env
+OPENROUTER_API_KEY      # Required: Claude API access
+MONGODB_URI             # MongoDB connection string (default: mongodb://localhost:27017)
+DATABASE_NAME           # Database name (default: dealscout)
+PORT                    # Server port (default: 8000)
+```
 
 ### Negotiation Parameters
 
-Edit `negotiate.py` to customize:
-
-```python
-PLATFORM_DATA       # Product info & comparable listings
-BUYER_PREFS        # Buyer budget and target price
-SELLER_PREFS       # Seller minimum and asking price
-MAX_TURNS           # Maximum negotiation turns (default: 10)
-```
-
-## Example Output
-
-When running a negotiation:
-
-```
-🤝 AI NEGOTIATION SYSTEM
-======================================================================
-Product: Trek Mountain Bike XL
-Asking Price: $450
-Platform Comps: 4 similar items (avg $450.0)
-======================================================================
-
-💬 TURN 1 - BUYER'S TURN
-  💭 Buyer: Hey! I'm really interested in the Trek mountain bike...
-  💰 Offer: $380.00
-  👁️ Confidence: 70%
-
-💬 TURN 2 - SELLER'S TURN
-  💭 Seller: Hey! Thanks for the interest...
-  💰 Offer: $430.00
-  👁️ Confidence: 85%
-
-[... more turns ...]
-
-✅ DEAL REACHED!
-Final Price: $420.00
-Buyer saved: $30.00 (6.7% off asking)
-Seller above minimum: $60.00
-Negotiation completed in 5 turns
-======================================================================
-```
+Modify in `api_server.py`:
+- `MAX_TURNS`: Maximum negotiation turns (default: 8)
+- Buyer budget override in request
+- Seller minimum/asking prices from database
 
 ## How It Works
 
-### 1. Buyer Agent Decision Making
+### 1. Search Phase
 
-The buyer agent:
-1. Reviews product details and comparable listings
-2. Checks conversation history and current market context
-3. Determines appropriate offer (realistic incremental steps)
-4. Decides action: counter, accept, reject, or walk away
-5. Generates natural conversational message
-6. Returns JSON with offer, action, message, and confidence
+1. User enters natural language query: "mountain bike under 1000"
+2. LLM converts to MongoDB filter: `{"product_detail": {"$regex": "bike"}, "asking_price": {"$lte": 1000}}`
+3. Search returns all matching products (e.g., 3 mountain bikes)
+4. Frontend receives product list via SSE
 
-### 2. Seller Agent Decision Making
+### 2. Negotiation Phase
 
-The seller agent:
-1. Reviews buyer's current offer
-2. Checks minimum acceptable price constraint
-3. References comparable listings to defend price
-4. Adapts strategy based on negotiation turn
-5. Determines counter offer or acceptance
-6. Generates natural conversational response
-7. Returns JSON with decision, offer, message, and confidence
+For each found product:
+1. Initialize buyer/seller preferences and market data
+2. Run negotiation loop (alternating turns):
+   - **Turn 1**: Buyer makes initial offer
+   - **Turn 2**: Seller responds
+   - Continue until deal reached or max turns
+3. Return result with final price and savings
 
-### 3. Negotiation Loop
+### 3. Analysis Phase
 
-The orchestrator:
-1. Alternates between buyer and seller turns
-2. Passes full negotiation state to each agent
-3. Validates agent responses and enforces constraints
-4. Detects deal completion (both parties accept same price)
-5. Handles negotiation end (max turns, walk away, rejection)
-6. Formats and returns final result
+1. Compare all negotiation results
+2. Calculate best deal (highest savings or fairest price)
+3. Stream final recommendation to frontend
 
 ## Testing
 
-Run the included test suite to verify API functionality:
+Test with sample data:
 
 ```bash
-python test_api.py
+# Seed database with 6 test products
+python seed_db.py
+
+# Test search with one product
+curl -X POST http://localhost:8000/api/buyer/search \
+  -H "Content-Type: application/json" \
+  -d '{"search_query": "macbook", "max_budget": 1000}'
+
+# Test with multiple products
+curl -X POST http://localhost:8000/api/buyer/search \
+  -H "Content-Type: application/json" \
+  -d '{"search_query": "bike under 1000", "max_budget": 1000}'
 ```
 
-Tests cover:
-- ✓ Health check endpoint
-- ✓ Search listings with filters
-- ✓ Missing field validation
-- ✓ Negotiation workflow
-- ✓ Multiple listing rejection
-- ✓ 404 error handling
+Sample products in database:
+- 3 Mountain Bikes (Trek, Giant, Specialized) - $750-$920
+- 3 Electronics (MacBook Air, PS5, iPad) - $450-$950
 
-## Known Limitations
+## Performance Optimizations
 
-- Single-listing negotiation only (multi-listing coming soon)
-- Mock database functions (need real DB integration)
-- No persistent negotiation history yet
-- No user authentication
-- No WebSocket for real-time updates
+- **Streaming**: SSE for real-time updates without polling
+- **Rate Limiting**: 0.5s delay between negotiations to prevent API throttling
+- **Error Resilience**: Comprehensive error handling to continue processing remaining items
+- **Async/Await**: Non-blocking I/O in FastAPI
 
 ## Future Enhancements
 
-- [ ] Multi-listing simultaneous negotiation
-- [ ] Multiple buyers with one seller
-- [ ] Real database integration (PostgreSQL/MongoDB)
-- [ ] User authentication and session management
-- [ ] WebSocket support for real-time updates
-- [ ] Negotiation analytics and success metrics
-- [ ] Seller preference customization
-- [ ] Automatic offer generation improvements
+- [ ] Real-time WebSocket instead of SSE
+- [ ] Negotiation history and analytics
+- [ ] User authentication and profiles
+- [ ] Payment integration
+- [ ] Email notifications
+- [ ] Advanced search filters
+- [ ] Seller dashboard with analytics
+- [ ] Multi-language support
 
-## Technology Stack
+## Troubleshooting
 
-- **Backend**: Python 3.8+
-- **Web Framework**: Flask 3.0+
-- **LLM**: Claude Sonnet 4.5 via OpenRouter API
-- **Testing**: Python unittest
-- **Database**: Mock implementation (ready for real DB)
+### Port Already in Use
+```bash
+# Find process using port 8000
+lsof -i :8000
+# Kill it
+kill -9 <PID>
+```
 
-## Requirements
+### MongoDB Connection Failed
+```bash
+# Check if MongoDB is running
+mongod --version
 
-See `requirements.txt`:
-- requests >= 2.31.0
-- python-dotenv >= 1.0.0
-- flask >= 3.0.0
+# Start MongoDB
+mongod --dbpath /tmp/mongodb_data
+```
+
+### API Key Invalid
+- Verify `OPENROUTER_API_KEY` in `.env`
+- Get new key from [OpenRouter](https://openrouter.ai/)
+- Restart API server after updating
+
+### No Products Found
+- Check database is seeded: `python seed_db.py`
+- Try simpler search: "bike" instead of specific model
+- Check product data in MongoDB: `mongosh`
 
 ## License
 
-MIT License - feel free to use and modify for your projects
+MIT License - Feel free to use and modify for your projects
 
 ## Contributing
 
-Contributions are welcome! Areas for improvement:
-- Database integration
+Contributions welcome! Areas for improvement:
 - Additional marketplace features
 - Agent prompt optimization
-- Frontend implementations
-- Performance optimization
+- Performance improvements
+- Bug fixes and reliability enhancements
 
 ## Contact & Support
 
 For issues or questions:
-1. Check [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for API details
-2. Review [FRONTEND_INTEGRATION.md](FRONTEND_INTEGRATION.md) for frontend help
-3. Run `test_api.py` to verify setup
-4. Check `.env` file has valid API key
+1. Check `.env` has valid `OPENROUTER_API_KEY`
+2. Verify MongoDB is running: `mongod --dbpath /tmp/mongodb_data`
+3. Run `python seed_db.py` to populate database
+4. Check API logs for detailed error messages
 
 ---
 
