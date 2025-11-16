@@ -396,7 +396,16 @@ export default function BuyerPage() {
   };
 
   const generateContract = async () => {
+    console.log("🔵 generateContract called");
+    console.log("🔵 negotiationResult:", negotiationResult);
+    console.log("🔵 selectedProduct:", selectedProduct);
+    console.log("🔵 transactionDetails:", transactionDetails);
+
     if (!negotiationResult || !selectedProduct || negotiationResult.status !== "success") {
+      console.log("❌ Validation failed - early return");
+      console.log("negotiationResult exists:", !!negotiationResult);
+      console.log("selectedProduct exists:", !!selectedProduct);
+      console.log("negotiationResult.status:", negotiationResult?.status);
       return;
     }
 
@@ -407,46 +416,55 @@ export default function BuyerPage() {
       // Get card last 4 digits (or use placeholder if not available)
       const cardLast4 = cardNumber.replace(/\s/g, '').slice(-4) || "9010";
 
+      const requestData = {
+        negotiation_id: negotiationResult.negotiation_id || "neg_placeholder",
+        buyer_id: "buyer_demo_001",
+        seller_id: selectedProduct.seller_id,
+        listing_id: selectedProduct.item_id,
+        result: {
+          status: "success",
+          final_price: negotiationResult.final_price,
+          buyer_savings: negotiationResult.savings || 0,
+          seller_gain: 0,
+          turns: negotiationResult.messages?.length || 0,
+          history: negotiationResult.messages || []
+        },
+        product: {
+          title: selectedProduct.product_detail,
+          condition: selectedProduct.condition,
+          asking_price: selectedProduct.asking_price,
+          location: selectedProduct.location,
+          extras: []
+        },
+        payment_details: {
+          transaction_id: transactionId,
+          payment_method: "Visa",
+          card_last_4: cardLast4,
+          cardholder_name: cardName || "CARDHOLDER",
+          transaction_timestamp: new Date().toISOString(),
+          amount_paid: transactionDetails?.buyerDebit || negotiationResult.final_price,
+          seller_receives: transactionDetails?.sellerCredit || negotiationResult.final_price * 0.95
+        }
+      };
+
+      console.log("🔵 Sending contract request:", requestData);
+
       const response = await fetch("http://localhost:8000/api/contract/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          negotiation_id: negotiationResult.negotiation_id || "neg_placeholder",
-          buyer_id: "buyer_demo_001",
-          seller_id: selectedProduct.seller_id,
-          listing_id: selectedProduct.item_id,
-          result: {
-            status: "success",
-            final_price: negotiationResult.final_price,
-            buyer_savings: negotiationResult.savings || 0,
-            seller_gain: 0,
-            turns: negotiationResult.messages?.length || 0,
-            history: negotiationResult.messages || []
-          },
-          product: {
-            title: selectedProduct.product_detail,
-            condition: selectedProduct.condition,
-            asking_price: selectedProduct.asking_price,
-            location: selectedProduct.location,
-            extras: []
-          },
-          payment_details: {
-            transaction_id: transactionId,
-            payment_method: "Visa",
-            card_last_4: cardLast4,
-            cardholder_name: cardName || "CARDHOLDER",
-            transaction_timestamp: new Date().toISOString(),
-            amount_paid: transactionDetails?.buyerDebit || negotiationResult.final_price,
-            seller_receives: transactionDetails?.sellerCredit || negotiationResult.final_price * 0.95
-          }
-        }),
+        body: JSON.stringify(requestData),
       });
+
+      console.log("🔵 Response status:", response.status);
+      console.log("🔵 Response ok:", response.ok);
 
       if (response.ok) {
         // Get PDF blob from response
         const blob = await response.blob();
+        console.log("🔵 Blob size:", blob.size);
+        console.log("🔵 Blob type:", blob.type);
 
         // Extract filename from Content-Disposition header or use default
         const contentDisposition = response.headers.get('Content-Disposition');
@@ -457,6 +475,8 @@ export default function BuyerPage() {
             filename = matches[1].replace(/['"]/g, '');
           }
         }
+
+        console.log("🔵 Downloading file:", filename);
 
         // Create download link and trigger download automatically
         const url = window.URL.createObjectURL(blob);
@@ -475,10 +495,13 @@ export default function BuyerPage() {
 
         console.log(`✅ Contract downloaded: ${filename}`);
       } else {
-        console.error("❌ Failed to generate contract");
+        const errorText = await response.text();
+        console.error("❌ Failed to generate contract. Status:", response.status);
+        console.error("❌ Error response:", errorText);
       }
     } catch (error) {
-      console.error("Error generating contract:", error);
+      console.error("❌ Error generating contract:", error);
+      console.error("❌ Error stack:", (error as Error).stack);
     }
   };
 
