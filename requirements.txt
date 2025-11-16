@@ -5,3 +5,5 @@ uvicorn>=0.27.0
 pydantic>=2.5.0
 flask>=3.0.0
 reportlab
+pymongo>=4.0.0
+python-multipart>=0.0.6
