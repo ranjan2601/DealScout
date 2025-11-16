@@ -683,8 +683,16 @@ export default function BuyerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 flex flex-col">
-      <Header showBackButton onBrowseClick={handleBrowseReset} />
+    <div className="flex flex-col min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50 text-gray-900 relative overflow-hidden">
+      {/* Animated grid background */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#e5e7eb_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-40" />
+
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-400/20 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-400/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-[120px]" />
+
+      <div className="relative z-10 flex flex-col min-h-screen">
+        <Header showBackButton onBrowseClick={handleBrowseReset} />
 
       <main className="flex-1 flex overflow-hidden">
         <div className={`flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto w-full transition-all duration-300 ${selectedProduct ? 'mr-0 sm:mr-[500px]' : ''}`}>
@@ -1885,7 +1893,7 @@ export default function BuyerPage() {
         </div>
       )}
 
-
+      </div>
     </div>
   );
 }

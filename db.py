@@ -259,7 +259,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "bike-001",
             "category": "mountain-bike",
-            "images": ["/products/mountain-bike-1.jpg", "/products/mountain-bike-2.jpg"]
+            "images": ["https://otesports.com/wp-content/uploads/2025/05/Trek-Marlin-4-2.png"]
         },
         {
             "seller_id": "seller_mb_002",
@@ -272,7 +272,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "bike-002",
             "category": "mountain-bike",
-            "images": ["/products/mountain-bike-2.jpg", "/products/mountain-bike-3.jpg"]
+            "images": ["https://mbaction.com/wp-content/uploads/2025/01/M9_Giant_e-copy.jpg"]
         },
         {
             "seller_id": "seller_mb_003",
@@ -285,7 +285,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "bike-003",
             "category": "mountain-bike",
-            "images": ["/products/mountain-bike-3.jpg", "/products/mountain-bike-1.jpg", "/products/mountain-bike-2.jpg"]
+            "images": ["https://hips.hearstapps.com/hmg-prod/images/specialized-levo-ec-1616455178.jpg?crop=0.726xw:0.819xh;0.155xw,0.0856xh&resize=768:*"]
         },
         {
             "seller_id": "seller_mb_004",
@@ -298,7 +298,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "bike-004",
             "category": "mountain-bike",
-            "images": ["/products/mountain-bike-1.jpg", "/products/mountain-bike-3.jpg"]
+            "images": ["https://embed.widencdn.net/img/dorelrl/iizetjwtzy/800px@1x/C21_C31400F_Quick_Disc_4_CMT_3Q.jpg?color=E7F3F8&q=90"]
         },
         {
             "seller_id": "seller_mb_005",
@@ -311,7 +311,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "bike-005",
             "category": "mountain-bike",
-            "images": ["/products/mountain-bike-2.jpg", "/products/mountain-bike-1.jpg"]
+            "images": ["https://images.squarespace-cdn.com/content/v1/582610a5725e25d01196b93f/1551038713256-BCRTILTMMR3XVRUGD0GE/image-asset.jpeg?format=2500w"]
         },
         {
             "seller_id": "seller_mb_006",
@@ -324,7 +324,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "bike-006",
             "category": "mountain-bike",
-            "images": ["/products/mountain-bike-3.jpg", "/products/mountain-bike-2.jpg", "/products/mountain-bike-1.jpg"]
+            "images": ["https://images.cdn.europe-west1.gcp.commercetools.com/078b97e9-ed31-4c81-baae-cdd44f3bf3c1/56c2f5b5c9b335faefdd-ss1nzTlP.jpg"]
         },
         {
             "seller_id": "seller_mb_007",
@@ -337,7 +337,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "bike-007",
             "category": "mountain-bike",
-            "images": ["/products/mountain-bike-1.jpg", "/products/mountain-bike-2.jpg"]
+            "images": ["https://otesports.com/wp-content/uploads/2025/05/Trek-Marlin-4-2.png"]
         },
         {
             "seller_id": "seller_mb_008",
@@ -350,7 +350,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "bike-008",
             "category": "mountain-bike",
-            "images": ["/products/mountain-bike-2.jpg", "/products/mountain-bike-3.jpg", "/products/mountain-bike-1.jpg"]
+            "images": ["https://otesports.com/wp-content/uploads/2025/05/Trek-Marlin-4-2.png"]
         },
         {
             "seller_id": "seller_mb_009",
@@ -363,7 +363,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "bike-009",
             "category": "mountain-bike",
-            "images": ["/products/mountain-bike-3.jpg", "/products/mountain-bike-1.jpg"]
+            "images": ["https://mbaction.com/wp-content/uploads/2025/01/M9_Giant_e-copy.jpg"]
         },
         {
             "seller_id": "seller_mb_010",
@@ -376,7 +376,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "bike-010",
             "category": "mountain-bike",
-            "images": ["/products/mountain-bike-1.jpg", "/products/mountain-bike-2.jpg"]
+            "images": ["https://otesports.com/wp-content/uploads/2025/05/Trek-Marlin-4-2.png"]
         }
     ]
     
@@ -393,7 +393,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "macbook-001",
             "category": "macbook",
-            "images": ["/products/macbook-pro-16.jpg", "/products/macbook-air-m2.jpg", "/products/macbook-pro-14.jpg"]
+            "images": ["https://m.media-amazon.com/images/I/61ME8jRwbVL._AC_UF894,1000_QL80_.jpg"]
         },
         {
             "seller_id": "seller_mb_012",
@@ -406,7 +406,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "macbook-002",
             "category": "macbook",
-            "images": ["/products/macbook-air-m2.jpg", "/products/macbook-pro-16.jpg"]
+            "images": ["https://m.media-amazon.com/images/I/71NmNRqG3WL._AC_UF894,1000_QL80_.jpg"]
         },
         {
             "seller_id": "seller_mb_013",
@@ -419,7 +419,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "macbook-003",
             "category": "macbook",
-            "images": ["/products/macbook-pro-14.jpg", "/products/macbook-pro-16.jpg", "/products/macbook-air-m2.jpg"]
+            "images": ["https://media.cnn.com/api/v1/images/stellar/prod/230125131405-macbook-pro-14-inch-2023-review-cnnu-7.jpg?c=16x9&q=w_800,c_fill"]
         },
         {
             "seller_id": "seller_mb_014",
@@ -432,7 +432,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "macbook-004",
             "category": "macbook",
-            "images": ["/products/macbook-air-m2.jpg", "/products/macbook-pro-14.jpg"]
+            "images": ["https://m.media-amazon.com/images/I/91wYB53Y4aL.jpg"]
         },
         {
             "seller_id": "seller_mb_015",
@@ -445,7 +445,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "macbook-005",
             "category": "macbook",
-            "images": ["/products/macbook-pro-16.jpg", "/products/macbook-pro-14.jpg", "/products/macbook-air-m2.jpg"]
+            "images": ["https://static0.xdaimages.com/wordpress/wp-content/uploads/2023/02/macbook-pro-m2-max-xda-review-202300158.jpg"]
         },
         {
             "seller_id": "seller_mb_016",
@@ -458,7 +458,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "macbook-006",
             "category": "macbook",
-            "images": ["/products/macbook-air-m2.jpg", "/products/macbook-pro-16.jpg"]
+            "images": ["https://cdn.mos.cms.futurecdn.net/MUVBUjdhSRhWxspNxPmLER-1200-80.jpg"]
         },
         {
             "seller_id": "seller_mb_017",
@@ -471,7 +471,7 @@ def seed_test_data():
             "condition": "fair",
             "item_id": "macbook-007",
             "category": "macbook",
-            "images": ["/products/macbook-pro-14.jpg", "/products/macbook-air-m2.jpg"]
+            "images": ["https://cdsassets.apple.com/live/SZLF0YNV/images/sp/111955_SP715-display_mbp_13.jpg"]
         },
         {
             "seller_id": "seller_mb_018",
@@ -484,7 +484,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "macbook-008",
             "category": "macbook",
-            "images": ["/products/macbook-air-m2.jpg", "/products/macbook-pro-16.jpg", "/products/macbook-pro-14.jpg"]
+            "images": ["https://photos5.appleinsider.com/gallery/48927-96793-49298-96697-MacBook-Air-Closed-on-Desk-xl-xl.jpg"]
         },
         {
             "seller_id": "seller_mb_019",
@@ -497,7 +497,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "macbook-009",
             "category": "macbook",
-            "images": ["/products/macbook-pro-14.jpg", "/products/macbook-pro-16.jpg"]
+            "images": ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRbGp9I2vSlRY3FytYgS3QKhOw9q2wAHxuMsQ&s"]
         },
         {
             "seller_id": "seller_mb_020",
@@ -510,7 +510,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "macbook-010",
             "category": "macbook",
-            "images": ["/products/macbook-air-m2.jpg", "/products/macbook-pro-14.jpg"]
+            "images": ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTikQI8CB6rsm_1gq94YHGX1gGwTxb-kYAEoQ&s"]
         }
     ]
     
@@ -527,7 +527,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "other-001",
             "category": "electronics",
-            "images": ["/products/playstation-5.jpg", "/products/iphone-14-pro.jpg", "/products/ipad-pro-12.jpg"]
+            "images": ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJa2rFxfc7GOKoPcSrA72-_vu3wPJyVwu3_w&s"]
         },
         {
             "seller_id": "seller_other_002",
@@ -540,7 +540,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "other-002",
             "category": "electronics",
-            "images": ["/products/airpods-max.jpg", "/products/iphone-14-pro.jpg"]
+            "images": ["https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/airpods-max-select-202409-midnight_FMT_WHH?wid=1200&hei=630&fmt=jpeg&qlt=95&.v=1724927451044"]
         },
         {
             "seller_id": "seller_other_003",
@@ -553,7 +553,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "other-003",
             "category": "electronics",
-            "images": ["/products/ipad-pro-12.jpg", "/products/airpods-max.jpg", "/products/iphone-14-pro.jpg"]
+            "images": ["https://www.apple.com/newsroom/images/product/ipad/standard/Apple-iPad-Pro-Reference-Mode-221018_big.jpg.large.jpg"]
         },
         {
             "seller_id": "seller_other_004",
@@ -566,7 +566,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "other-004",
             "category": "electronics",
-            "images": ["/products/iphone-14-pro.jpg", "/products/airpods-max.jpg"]
+            "images": ["https://buy.gazelle.com/cdn/shop/files/iPhone_14_Pro_Max_-_Silver_-_Overlap_Trans-cropped.jpg?v=1757425866&width=1946"]
         },
         {
             "seller_id": "seller_other_005",
@@ -579,7 +579,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "other-005",
             "category": "electronics",
-            "images": ["/products/airpods-max.jpg", "/products/iphone-14-pro.jpg"]
+            "images": ["https://m.media-amazon.com/images/I/61eeHPRFQ9L.jpg"]
         },
         {
             "seller_id": "seller_other_006",
@@ -592,7 +592,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "other-006",
             "category": "electronics",
-            "images": ["/products/iphone-14-pro.jpg", "/products/airpods-max.jpg"]
+            "images": ["https://cdn.mos.cms.futurecdn.net/mfJNvNwN8CjPvLF7H8fSnQ-1200-80.jpg"]
         },
         {
             "seller_id": "seller_other_007",
@@ -605,7 +605,7 @@ def seed_test_data():
             "condition": "good",
             "item_id": "other-007",
             "category": "electronics",
-            "images": ["/products/playstation-5.jpg", "/products/ipad-pro-12.jpg"]
+            "images": ["https://i5.walmartimages.com/seo/Samsung-65-Inch-QN90-Neo-QLED-4K-Smart-TV-2023-Bundle-with-1-YR-CPS-Extended-Warranty-Protection-QN65QN90CA_234e9568-fccc-4f6e-a854-1d37ce1c5ae8.d91e8a2627ed0d0c1d90bb35c0b61c24.jpeg"]
         },
         {
             "seller_id": "seller_other_008",
@@ -618,7 +618,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "other-008",
             "category": "electronics",
-            "images": ["/products/iphone-14-pro.jpg", "/products/ipad-pro-12.jpg", "/products/playstation-5.jpg"]
+            "images": ["https://static.gopro.com/assets/blta2b8522e5372af40/blt80756222d57426f5/62d9b7f499dab06ebd1383e9/pdp-h11b-thumbnail-2.png"]
         },
         {
             "seller_id": "seller_other_009",
@@ -631,7 +631,7 @@ def seed_test_data():
             "condition": "like-new",
             "item_id": "other-009",
             "category": "electronics",
-            "images": ["/products/ipad-pro-12.jpg", "/products/playstation-5.jpg"]
+            "images": ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSLVsqpocT1wUgilN7IjTkNL5nSc3rDldSe5Q&s"]
         },
         {
             "seller_id": "seller_other_010",
@@ -644,7 +644,7 @@ def seed_test_data():
             "condition": "new",
             "item_id": "other-010",
             "category": "electronics",
-            "images": ["/products/playstation-5.jpg", "/products/ipad-pro-12.jpg"]
+            "images": ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTbXw-1LpoOFCRBp4AqAzD48c8llDJv_6_7tg&s"]
         }
     ]
     
